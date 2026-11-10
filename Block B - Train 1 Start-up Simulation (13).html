@@ -1,0 +1,967 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Block B – Train 1 Start-up Simulation</title>
+<style>
+:root{
+  --bg:#0a111c; --panel:#101a29; --line:#1f2e44; --txt:#d6e4f5; --mut:#7f93ad;
+  --cold:#38bdf8; --hot:#fb923c; --mo:#a78bfa; --syn:#34d399; --seal:#2dd4bf;
+  --fuel:#facc15; --air:#93c5fd; --exh:#f87171; --hyd:#f472b6; --eq:#1c3555; --eqs:#4f7fae;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--txt);font:14px/1.45 "Segoe UI",Roboto,system-ui,sans-serif}
+header{display:flex;align-items:center;gap:16px;flex-wrap:wrap;padding:10px 16px;border-bottom:1px solid var(--line)}
+header h1{font-size:17px;margin:0;font-weight:600}
+header .sub{color:var(--mut);font-size:12.5px}
+.ctl{margin-left:auto;display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+button{background:#172438;color:var(--txt);border:1px solid #2a3d59;border-radius:6px;padding:6px 11px;font:inherit;font-size:13px;cursor:pointer}
+button:hover{background:#1e3050}
+button.on{background:#244a7a;border-color:#3b6fb0}
+button.trip{border-color:#7f1d1d;background:#3a1414}
+.wrap{display:grid;grid-template-columns:1fr 360px;gap:0;min-height:calc(100vh - 56px)}
+.stage{position:relative;padding:6px 8px 4px}
+svg#plant{width:100%;height:auto;display:block}
+aside{border-left:1px solid var(--line);background:var(--panel);padding:12px 14px;overflow:auto;max-height:calc(100vh - 56px)}
+aside h2{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--mut);margin:14px 0 6px;font-weight:600}
+.phase-now{font-size:18px;font-weight:600;margin:0 0 2px}
+.phase-real{color:var(--mut);font-size:12px;margin-bottom:6px}
+.narr{font-size:13.5px;color:#c4d5ea}
+.narr b{color:#fff}
+.prog{height:4px;background:#1a2940;border-radius:2px;overflow:hidden;margin:8px 0 2px}
+.prog i{display:block;height:100%;width:0;background:linear-gradient(90deg,#3b82f6,#22d3ee)}
+ol.phases{list-style:none;padding:0;margin:0;display:grid;grid-template-columns:1fr 1fr;gap:4px}
+ol.phases li{font-size:12px;padding:4px 7px;border-radius:5px;background:#142034;cursor:pointer;border:1px solid transparent;color:var(--mut)}
+ol.phases li.done{color:#9fb6d3}
+ol.phases li.cur{border-color:#3b82f6;color:#fff;background:#1a2d4b}
+.ro{display:grid;grid-template-columns:1fr auto;gap:2px 10px;font-size:13px}
+.ro span:nth-child(odd){color:var(--mut)}
+.ro span:nth-child(even){font-variant-numeric:tabular-nums;text-align:right;color:#fff}
+.st{display:inline-block;padding:0 6px;border-radius:4px;font-size:11.5px;background:#26364d;color:#9fb0c6}
+.st.ok{background:#14532d;color:#86efac}.st.bad{background:#7f1d1d;color:#fecaca}.st.warn{background:#713f12;color:#fde68a}
+.log{font-family:ui-monospace,Consolas,monospace;font-size:11.5px;color:#9fb6d3;max-height:150px;overflow:auto;background:#0c1522;border:1px solid var(--line);border-radius:6px;padding:6px}
+.log div{white-space:nowrap}
+.log .t{color:#5f7593}
+.legend{display:flex;flex-wrap:wrap;gap:5px;padding:4px 8px 8px}
+.legend button{font-size:12px;padding:3px 9px;display:flex;gap:6px;align-items:center}
+.legend button i{width:14px;height:4px;border-radius:2px;display:inline-block}
+.legend button.off{opacity:.4}
+#tip{position:fixed;pointer-events:none;background:#0d1828;border:1px solid #35537d;border-radius:6px;padding:6px 9px;font-size:12.5px;max-width:280px;display:none;z-index:9;box-shadow:0 6px 20px #0008}
+#tip b{color:#fff}
+.foot{color:var(--mut);font-size:11.5px;padding:0 12px 10px}
+svg text{font-family:"Segoe UI",Roboto,system-ui,sans-serif}
+.lbl{fill:#cfe0f5;font-size:13px}
+.tag{fill:#8fb3da;font-size:11.5px}
+.big{fill:#e6f0ff;font-size:14px;font-weight:600}
+.hot [data-tip]{cursor:help}
+@media (max-width:1000px){.wrap{grid-template-columns:1fr}aside{border-left:0;border-top:1px solid var(--line);max-height:none}}
+
+#topnav{position:sticky;top:0;z-index:5;display:flex;align-items:center;gap:18px;flex-wrap:wrap;padding:7px 16px;background:#070d16;border-bottom:1px solid var(--line)}
+#topnav .brand{display:flex;flex-direction:column;line-height:1.2}
+#topnav .brand b{font-size:13.5px;color:#fff}#topnav .brand span{font-size:11.5px;color:var(--mut)}
+.tabs{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.tabs .arr{color:#3b5576;font-size:18px}
+.tab{font-size:13.5px;padding:7px 14px;border-radius:8px;background:#111d2e;border-color:#25395a}
+.tab i{font-style:normal;color:#60a5fa;margin-right:4px}
+.tab.on{background:linear-gradient(90deg,#1d4ed8,#0e7490);border-color:#38bdf8;color:#fff}.tab.on i{color:#fff}
+.view .wrap,#viewGtc .wrap{min-height:calc(100vh - 104px)}
+.view aside,#viewGtc aside{max-height:calc(100vh - 104px)}
+.gobtn{display:block;width:100%;margin:12px 0 2px;padding:9px 12px;font-size:13.5px;font-weight:600;background:linear-gradient(90deg,#1d4ed8,#0e7490);border-color:#38bdf8;text-align:left}
+.gobtn:hover{filter:brightness(1.15)}
+.gobtn.back{background:#172438;border-color:#2a3d59;font-weight:500;font-size:12.5px}
+.stlg{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--mut);padding:3px 6px}
+.stlg i{width:16px;height:11px;border:1.5px solid;border-radius:3px;display:inline-block}
+.tipbox{position:fixed;pointer-events:none;background:#0d1828;border:1px solid #35537d;border-radius:6px;padding:6px 9px;font-size:12.5px;max-width:300px;display:none;z-index:9;box-shadow:0 6px 20px #0008}
+.tipbox b{color:#fff}
+#xPlant [data-tip]{cursor:help}
+.vt{fill:#e6f0ff;font-size:11.5px;font-weight:600}
+.vt2{fill:#cfe0f5;font-size:11px;font-weight:600}
+.atx{font-size:11px;font-weight:600;letter-spacing:.04em}
+.bxt{font-size:11.5px;font-weight:600}
+.bxv{font-size:11.5px}
+.lit{font-size:12.5px}
+.modesw{display:inline-flex;margin-left:6px;border:1px solid #2a3d59;border-radius:7px;overflow:hidden}.modesw button{border:0;border-radius:0;font-weight:600;letter-spacing:.06em}.modesw button.on{background:#15803d;color:#fff}
+.pvt{fill:#e6f0ff;font-size:13px;font-weight:600}
+.ptg{fill:#8fb3da;font-size:12px}
+</style>
+</head>
+<body>
+<nav id="topnav">
+  <div class="brand"><b>Block B · CPP</b><span>Start-up &amp; Hydrocarbon Commissioning · Train 1</span></div>
+  <div class="tabs">
+    <button class="tab" data-view="sequence"><i>⓪</i> Commissioning sequence</button>
+    <span class="arr">›</span>
+    <button class="tab" data-view="prep"><i>①</i> Preparation (RFSU)</button>
+    <span class="arr">›</span>
+    <button class="tab" data-view="startup"><i>②</i> Hydrocarbon start-up</button>
+  </div>
+</nav>
+
+<section id="viewX" class="view">
+<header>
+  <div>
+    <h1 id="xTitle">–</h1>
+    <div class="sub" id="xSub"></div>
+  </div>
+  <div class="ctl">
+    <button id="xPrev">◀ Previous</button>
+    <button id="xPlay">▶ Play</button>
+    <button id="xNext">Next ▶</button>
+    <button id="xRestart">⟲ Restart</button>
+    <span class="modesw"><button id="xAuto" class="on">AUTO</button><button id="xMan">MANUAL</button></span>
+    <button data-xsp="0.5">0.5×</button><button data-xsp="1" class="on">1×</button><button data-xsp="2">2×</button><button data-xsp="4">4×</button>
+  </div>
+</header>
+<div class="wrap">
+  <div class="stage">
+    <div class="legend" id="xLegend"></div>
+    <svg id="xPlant" viewBox="0 0 1600 850" xmlns="http://www.w3.org/2000/svg"></svg>
+    <div class="foot" id="xFoot"></div>
+  </div>
+  <aside>
+    <div class="phase-now" id="xName">–</div>
+    <div class="phase-real" id="xReal"></div>
+    <div class="prog"><i id="xBar"></i></div>
+    <div class="narr" id="xText"></div>
+    <div id="xGo"></div>
+    <h2>Steps</h2>
+    <ol class="phases" id="xList"></ol>
+    <div id="xRo"></div>
+    <div id="xExtra"></div>
+    <h2>Event log</h2>
+    <div class="log" id="xLog"></div>
+  </aside>
+</div>
+<div id="xTip" class="tipbox"></div>
+</section>
+
+
+<script>
+(()=>{
+const NS='http://www.w3.org/2000/svg';
+const $=id=>document.getElementById(id);
+const svg=$('xPlant');
+const ease=t=>t<.5?2*t*t:1-Math.pow(-2*t+2,2)/2, lerp=(a,b,t)=>a+(b-a)*t, clamp=v=>Math.max(0,Math.min(1,v));
+const tip=(t,d)=>`data-tip="${t}" data-desc="${d}"`;
+const fmt=(x,d=0)=>Number(x).toLocaleString('en-US',{minimumFractionDigits:d,maximumFractionDigits:d});
+const chip=(cls,t)=>`<i class="st ${cls}">${t}</i>`;
+
+/* =====================================================================
+   SCENARIO 0 – HYDROCARBON COMMISSIONING SEQUENCE (slide 6)
+   ===================================================================== */
+const CAT={tmp:['Temp. system','#7e22ce'],perm:['System permanent to be used offshore','#16a34a'],nhc:['Offshore non-hydrocarbon commissioning','#c2410c'],hc:['System start-up hydrocarbon commissioning','#ca8a04']};
+const COLS=[
+ ['tmp',[['Temp Power Supply','']]],
+ ['perm',[['LV Power Distribution','CPPT-65'],['UPS Power System','CPPT-63'],['General Lighting / Small Power','CPPT-66']]],
+ ['perm',[['Control System (PCS)','CPPT-70'],['Pedestal Cranes','CPPT-91'],['Instrument Air (in service)','CPPT-50'],['Utility Air (in service)','CPPT-51'],['Service Water Distribution','CPPT-57'],['Potable Water Storage &amp; Pumps','CPPT-58']]],
+ ['perm',[['ESD System','CPPT-71'],['Inert Gas','CPPT-52'],['Diesel Centrifuge Package','CPPT-54'],['Diesel Firewater Pump','CPPT-80'],['Deluge System','CPPT-82'],['HVAC','CPPT-90']]],
+ ['perm',[['Fire &amp; Gas System','CPPT-72'],['Open Drain – Non Hazardous','CPPT-45'],['Lifeboats','CPPT-86'],['Hot Water','CPPT-49'],['Sewage / Sanitary','CPPT-55'],['Telecom / PAGA / CCTV / SCADA','CPPT-73/74/75']]],
+ ['nhc',[['Closed Drain','CPPT-47'],['Chemical Storage &amp; Distribution (top-up)','CPPT-53'],['HP Flare KO Drum &amp; Transfer Pumps','CPPT-42'],['LP Flare KO Drum &amp; Transfer Pumps','CPPT-43'],['Open Drain – Hazardous','CPPT-48'],['Hydraulic Power Unit (with TUTU)','CPPT-04']]],
+ ['nhc',[['Inlet Separator','CPPT-34'],['Three Phase Separator','CPPT-34'],['Water Injection Pump','CPPT-36']]],
+ ['nhc',[['GTG (DO Mode)','CPPT-60'],['Power Management System','CPPT-65'],['HV Switchgear 6.6 kV (6401)','CPPT-64'],['Power Transformer 6000/420 V','CPPT-64-02/03/04'],['LV Power Distribution','CPPT-65']]],
+ ['hc',[['Utility Gas Supply &amp; Distribution','CPPT-40'],['Fuel Gas','CPPT-38'],['Production Compressor','CPPT-11'],['Glycol Dehydration','CPPT-12'],['Turbo Expander Package','CPPT-13']]],
+ ['hc',[['Mercury Removal Unit','CPPT-14'],['Pipeline Compressor','CPPT-15'],['Waste Heat Recovery Unit','CPPT-56'],['Condensate Stabilizer','CPPT-34'],['Vapour Recovery Compressor','CPPT-30']]],
+ ['hc',[['Sales Gas Analyzer Shelter','CPPT-31'],['Sales Gas Metering','CPPT-31'],['Produced Water Treatment Package','CPPT-36'],['GTG (Gas Mode)','CPPT-60']]],
+];
+const CX=i=>22+i*143, CW=126, RY=r=>104+r*66, RH=54;
+const K0=[],LAB0={};COLS.forEach(([c,items],i)=>items.forEach((it,r)=>{const k=`q${i}_${r}`;K0.push([k,c,i,r]);LAB0[k]=it[0]+(it[1]?' ('+it[1]+')':'')}));
+const colKeys=i=>K0.filter(x=>x[2]===i).map(x=>x[0]);
+const colDone=(S,i)=>colKeys(i).every(k=>S[k]>=1);
+function wrap(s,n){const w=s.replace(/&amp;/g,'&').split(' ');const L=[];let l='';w.forEach(x=>{if((l+' '+x).trim().length>n){L.push(l.trim());l=x}else l+=' '+x});if(l.trim())L.push(l.trim());return L.map(x=>x.replace(/&/g,'&amp;'))}
+
+const SC0={
+ key:'sequence',
+ title:'⓪ Hydrocarbon commissioning sequence',
+ sub:'Order in which systems are commissioned, per slide 6 · temporary power → permanent systems → non-HC commissioning → HC start-up · <b style="color:#86efac">green = commissioned</b>',
+ foot:'Column header colours follow slide 6: purple = temporary system, green = permanent systems used offshore, orange = offshore non-hydrocarbon commissioning, gold (red dashed frame) = systems started up with hydrocarbons. The HC columns are completed during ② Hydrocarbon start-up, after the RFSU certificate (①).',
+ s0:{},
+ legend:[['seq','Commissioning sequence','#94a3b8'],['done','Commissioned','#22c55e']],
+ lab:LAB0,
+ build(){
+  let h='';
+  const band=(i0,i1,c)=>{const x=CX(i0)-6,w=CX(i1)+CW-CX(i0)+12;h+=`<rect x="${x}" y="30" width="${w}" height="30" rx="4" fill="${CAT[c][1]}" opacity=".9"/><text x="${x+w/2}" y="50" text-anchor="middle" style="font-size:${w<200?11:13}px;font-weight:700;fill:#fff">${CAT[c][0]}</text>`};
+  band(0,0,'tmp');band(1,4,'perm');band(5,7,'nhc');band(8,10,'hc');
+  h+=`<rect x="${CX(8)-14}" y="22" width="${CX(10)+CW-CX(8)+28}" height="470" rx="8" fill="rgba(202,138,4,.05)" stroke="#ef4444" stroke-width="2" stroke-dasharray="10 6"/>`;
+  K0.forEach(([k,c,i,r])=>{const [n,t]=COLS[i][1][r];const x=CX(i),y=i===0?RY(2):RY(r);const L=wrap(n,19);
+   h+=`<g id="q_${k}" ${tip(n+(t?' · '+t:''),CAT[c][0]+(c==='hc'?' – started in ② Hydrocarbon start-up':''))}>
+    <rect class="qr" x="${x}" y="${y}" width="${CW}" height="${RH}" rx="5"/>
+    <rect x="${x}" y="${y}" width="5" height="${RH}" rx="2" fill="${CAT[c][1]}"/>
+    ${L.map((l,j)=>`<text class="qt" x="${x+12}" y="${y+(t?17:22)+j*13-(L.length-1)*4}" style="font-size:11px;font-weight:600">${l}</text>`).join('')}
+    ${t?`<text class="qg" x="${x+12}" y="${y+RH-7}" style="font-size:9.5px;letter-spacing:.04em">${t}</text>`:''}
+    <g class="qc" opacity="0"><circle cx="${x+CW-11}" cy="${y+11}" r="7.5" fill="#16a34a"/><path d="M${x+CW-15} ${y+11} l3 3 l6 -7" stroke="#fff" stroke-width="2" fill="none"/></g></g>`});
+  // progress bars
+  h+=`<text x="22" y="540" style="font-size:12px;font-weight:700;fill:#e2e8f0;letter-spacing:.1em">PROGRESS BY GROUP</text>`;
+  [['tmp','perm'],['nhc'],['hc']].forEach((cs,j)=>{const y=560+j*58;const lbl=cs.map(c=>CAT[c][0]).join(' + ');
+   h+=`<text x="22" y="${y+14}" style="font-size:12px;fill:#cbd5e1">${lbl}</text><rect x="22" y="${y+22}" width="900" height="14" rx="7" fill="#1e293b"/><rect id="pb${j}" x="22" y="${y+22}" width="0" height="14" rx="7" fill="${CAT[cs[cs.length-1]][1]}"/><text id="pt${j}" x="932" y="${y+34}" style="font-size:12px;fill:#e2e8f0;font-weight:600"></text>`});
+  h+=`<g ${tip('Link to the other views','The permanent and non-HC columns must be complete before RFSU (①). The gold HC columns are the steps animated in ② Hydrocarbon start-up.')}><rect x="1010" y="540" width="568" height="170" rx="8" fill="#0c1522" stroke="#2a3d59"/>
+   <text x="1026" y="563" style="font-size:12px;font-weight:700;fill:#e2e8f0;letter-spacing:.1em">WHERE EACH HC SYSTEM STARTS IN ②</text>
+   ${[['Utility gas / Fuel gas','Step 3'],['GTG (gas mode)','Step 4'],['Produced water treatment','Step 5'],['Condensate stabilizer, VRU','Step 6'],['Prod. &amp; pipeline compressor, glycol, MRU, turbo-expander (JT bypass), WHRU','Step 7'],['Sales gas metering &amp; analyzer','Step 8']].map(([a,b],i)=>`<text x="1026" y="${586+i*20}" style="font-size:11.5px;fill:#cbd5e1">${a}</text><text x="1562" y="${586+i*20}" text-anchor="end" style="font-size:11.5px;font-weight:700;fill:#fde68a">${b}</text>`).join('')}</g>`;
+  return h;
+ },
+ flows(){const F=[];
+  for(let i=1;i<COLS.length;i++){const bx=CX(i)-9;const ks=colKeys(i);const yTop=88,yBot=RY(ks.length-1)+RH/2;
+   F.push({sys:'seq',c:'#94a3b8',cf:S=>colDone(S,i-1)?'#22c55e':'#475569',d:`M${CX(i-1)-9+(i===1?9+CW:0)} ${i===1?RY(2)+RH/2:88} ${i===1?`H${bx} V88`:`H${bx}`}`,v:S=>colDone(S,i-1)?1:0,w:3,dash:'5 8',base:1});
+   F.push({sys:'seq',c:'#94a3b8',cf:S=>colDone(S,i-1)?'#22c55e':'#475569',d:`M${bx} ${yTop} V${yBot}`,v:S=>colDone(S,i-1)?1:0,w:3,dash:'5 8',base:1});
+   ks.forEach((k,r)=>F.push({sys:'seq',c:'#94a3b8',cf:S=>S[k]>=1?'#22c55e':'#475569',d:`M${bx} ${RY(r)+RH/2} H${CX(i)}`,v:S=>S[k]>0?1:0,w:2,dash:'3 6',base:1}));}
+  return F},
+ P:(()=>{const P=[{n:'Overview',real:'Slide 6 · HC commissioning sequence',dur:5,
+   x:'Slide 6 shows the order in which <b>50 systems</b> are commissioned, left to right:<br>• <b style="color:#c084fc">Temporary power</b> energises the first permanent boards.<br>• <b style="color:#4ade80">Permanent systems</b> (power, control, air, water, safety, F&amp;G, telecom) – required before any hydrocarbon work.<br>• <b style="color:#fb923c">Offshore non-HC commissioning</b>: drains, chemicals, flare KO drums, separators, GTG on diesel, HV/LV power.<br>• <b style="color:#facc15">HC start-up systems</b> (red dashed frame) – commissioned with hydrocarbons in ② after RFSU.'}];
+  const N=['Temporary & LV power','Control, air & water','ESD, inert gas, diesel, firewater','F&G, drains, lifeboats, telecom','Drains, chemicals, flare KO drums','Separators & water injection','GTG (DO) & power distribution','HC start-up – group 1','HC start-up – group 2','HC start-up – group 3'];
+  const X=['Temporary power supplies <b>LV Power Distribution (CPPT-65)</b>, then <b>UPS (CPPT-63)</b> and <b>general lighting / small power (CPPT-66)</b>.',
+   '<b>PCS (CPPT-70)</b>, pedestal cranes, <b>instrument air</b> and <b>utility air</b> put in service, service water and potable water.',
+   '<b>ESD system (CPPT-71)</b>, inert gas, diesel centrifuge, <b>diesel firewater pump</b>, <b>deluge</b> and HVAC.',
+   '<b>Fire &amp; gas (CPPT-72)</b>, non-hazardous open drain, lifeboats, hot water, sewage, telecom / PAGA / CCTV / SCADA. Permanent systems complete.',
+   'Offshore non-HC commissioning: <b>closed drain</b>, chemical storage (top-up), <b>HP and LP flare KO drums &amp; transfer pumps</b>, hazardous open drain, HPU with TUTU.',
+   '<b>Inlet separator</b> and <b>three-phase separator</b> (CPPT-34) and the water injection pump (CPPT-36), dry / non-HC.',
+   '<b>GTG on diesel (CPPT-60)</b>, power management system, <b>6.6 kV HV switchgear</b>, power transformers 6000/420 V and LV distribution. Non-HC commissioning complete → <b>RFSU</b> (①).',
+   'With hydrocarbons (②): <b>utility gas</b>, <b>fuel gas</b>, <b>production compressor</b>, <b>glycol dehydration</b>, <b>turbo-expander package</b> (started on the JT bypass).',
+   'With hydrocarbons (②): <b>MRU</b>, <b>pipeline compressor</b>, <b>WHRU</b>, <b>condensate stabilizer</b>, <b>vapour recovery compressor</b>.',
+   'With hydrocarbons (②): <b>sales gas analyzer</b> and <b>metering</b>, <b>produced water treatment</b>, and finally <b>GTG in gas mode</b>.'];
+  const R=['Temp → permanent','Permanent','Permanent','Permanent','Non-HC','Non-HC','Non-HC → RFSU','HC start-up (②)','HC start-up (②)','HC start-up (②)'];
+  for(let j=0;j<10;j++){const cols=j===0?[0,1]:[j+1];const seq=[];cols.forEach(c=>seq.push(...colKeys(c)));
+   const ph={n:N[j],real:R[j],dur:j===9?Infinity:Math.max(6,seq.length*1.4),seq,x:X[j]};
+   if(j===9)ph.go=['prep',0,'Go to ① Preparation (RFSU) ▶'];
+   if(j===9){ph.dur=8;P.push(ph);P.push({n:'Sequence complete',real:'All 50 systems',dur:Infinity,x:'All systems in the slide 6 sequence are commissioned. Continue with <b>① RFSU pre-requisites</b> and <b>② Hydrocarbon start-up</b> for the detail of each step.',go:['prep',0,'Go to ① Preparation (RFSU) ▶']});delete ph.go}
+   else P.push(ph)}
+  return P})(),
+ ro(S){const cnt=cs=>{const ks=K0.filter(x=>cs.includes(x[1])).map(x=>x[0]);return [ks.filter(k=>S[k]>=1).length,ks.length]};
+  const a=cnt(['tmp','perm']),b=cnt(['nhc']),c=cnt(['hc']),t=cnt(['tmp','perm','nhc','hc']);
+  return [['Systems commissioned',`${t[0]} / ${t[1]}`],['Temp + permanent',`${a[0]} / ${a[1]}`],['Offshore non-HC',`${b[0]} / ${b[1]}`],['HC start-up',`${c[0]} / ${c[1]}`],
+   ['Ready for RFSU',a[0]===a[1]&&b[0]===b[1]?chip('ok','YES'):chip('','NOT YET')]]},
+ roTitle:'Progress',
+ draw(S,now){const pulse=0.5+0.5*Math.sin(now/220);
+  K0.forEach(([k])=>{const g=$('q_'+k);const v=S[k]||0;const st=v>=1?2:v>0?1:0;if(g._st===st&&st!==1)return;g._st=st;const r=g.querySelector('.qr');
+   r.setAttribute('fill',st===2?'#0d2e1e':st===1?'#132c52':'#0f172a');r.setAttribute('stroke',st===2?'#22c55e':st===1?'#93c5fd':'#334155');r.setAttribute('stroke-width',st===1?(1.5+2*pulse).toFixed(2):st===2?2:1.2);
+   g.querySelectorAll('.qt').forEach(t=>t.setAttribute('fill',st?'#f1f5f9':'#94a3b8'));g.querySelectorAll('.qg').forEach(t=>t.setAttribute('fill',st===2?'#86efac':'#64748b'));g.querySelector('.qc').setAttribute('opacity',st===2?1:0)});
+  [['tmp','perm'],['nhc'],['hc']].forEach((cs,j)=>{const ks=K0.filter(x=>cs.includes(x[1])).map(x=>x[0]);const d=ks.filter(k=>S[k]>=1).length;$('pb'+j).setAttribute('width',(900*d/ks.length).toFixed(1));setT('pt'+j,`${d} / ${ks.length}`)});
+ },
+};
+
+/* =====================================================================
+   SCENARIO 1 – PREPARATION (RFSU PRE-REQUISITES, slide 8)
+   Middle band = MAIN path (critical path, amber) · small grey boxes = SUPPORTING conditions
+   ===================================================================== */
+const MAINC='#3b82f6', SUBC='#64748b', DONEC='#22c55e';
+const SAFE=['Fire suppression (all)','PSD / ESD system','F&amp;G system','BDVs / PSVs','ICSS','Safety showers','Telecomms','Lifeboats','Escape routes','ERT &amp; documents','Emergency lighting'];
+const UTIL=['Diesel system','Utility &amp; instrument air','WHCP','Open / closed drains','Fuel gas / utility gas','Flare system','Service water','GTG','Nitrogen system','Produced water system','Chemical system','WHR &amp; hot oil system'];
+const BOX={
+ b1:[30,205,200,70,['DRILLING PROGRAMME','COMPLETED'],'','s'],
+ b2:[30,585,200,70,['WELL FLOW BACK','COMPLETED TO DRILL RIG'],'','s'],
+ b3:[30,380,200,100,['RIG DOWN, PRESSURE TEST','&amp; TREE VALVE TESTING','WITNESSED'],'','m'],
+ c1:[290,150,210,60,['WELL HANDOVERS'],'','s'],
+ c2:[290,235,210,75,['FINAL LEAK TEST CERTS','AFTER FLOWLINE &amp; HUC'],'','s'],
+ c3:[290,380,210,100,['SYSTEMS MECHANICALLY','COMPLETE &amp; PRE-COMM','AFTER HUC'],'','m'],
+ c4:[290,585,210,62,['PERMITS AND CONSENTS'],'(PLANC)','s'],
+ sA:[560,380,230,46,['SAFETY SYSTEMS AVAILABLE'],'','m'],
+ uA:[560,434,230,46,['UTILITY SYSTEMS AVAILABLE'],'','m'],
+ d1:[850,110,220,80,['FINAL GROSS LEAK CHECK','&amp; VALVE / INST','FUNCTION TESTING'],'','s'],
+ d2:[850,210,220,72,['NO CAT A PUNCHLIST','ON SYSTEMS INTO SERVICE'],'','s'],
+ d3:[850,380,220,100,['SYSTEMS HANDOVER','COMMISSIONING →','OPERATIONS (FIRST GAS)'],'','m'],
+ d4:[850,585,220,66,['ALL HANDOVER DOSSIERS','CHECKED &amp; ONBOARD'],'','s'],
+ d5:[850,670,220,80,['PSSR + RFSU AUDIT','COMPLETED, ALL ACTIONS','CLOSED'],'','s'],
+ e1:[1130,380,190,100,['RFSU CERTIFICATE','ISSUED'],'','m'],
+ e2:[1370,380,200,100,['READY TO PRODUCE','HYDROCARBONS'],'','m'],
+};
+const LAB1={b1:'Drilling programme completed',b2:'Well flow back completed to drill rig',b3:'<b style="color:#93c5fd">MAIN · Rig down, pressure test &amp; tree valve testing witnessed</b>',
+ c1:'Well handovers',c2:'Final leak test certs after flowline &amp; HUC',c3:'<b style="color:#93c5fd">MAIN · Systems MC &amp; pre-comm after HUC</b>',c4:'Permits &amp; consents',
+ sA:'<b style="color:#93c5fd">MAIN · SAFETY SYSTEMS AVAILABLE</b>',uA:'<b style="color:#93c5fd">MAIN · UTILITY SYSTEMS AVAILABLE</b>',d1:'Final gross leak check &amp; valve/inst function test',d2:'No Cat A punchlist',
+ d3:'<b style="color:#93c5fd">MAIN · Handover Commissioning → Operations</b>',d4:'Handover dossiers checked &amp; onboard',d5:'PSSR + RFSU audit closed',
+ e1:'<b style="color:#93c5fd">MAIN · RFSU CERTIFICATE ISSUED</b>',e2:'<b style="color:#93c5fd">MAIN · Ready to produce hydrocarbons</b>',e3:'<b style="color:#fbbf24">Ready for FIRST GAS</b>'};
+SAFE.forEach((s,i)=>LAB1['s'+i]='Safety: '+s);UTIL.forEach((s,i)=>LAB1['u'+i]='Utility: '+s);
+const RISK=[
+ ['Major loss of containment of high-pressure hydrocarbon gas','Incorrect valve line-up or flange / gasket failure under pressure','Major gas release, catastrophic damage and severe reputational impact','F&amp;G detection, ESD, blowdown, fire protection and ERP'],
+ ['Critical utility system failure','Instrument malfunction (e.g. pressure transmitter)','Equipment damage from uncontrolled shutdown / process deviation','ICSS alarms, PSD, fail-safe valves and emergency lighting'],
+ ['Dropped / swinging objects impacting live process equipment','Crane / rigging failure or lifting human error','Pressurized pipe / vessel rupture, causing LOC and fire / explosion','SDV isolation, AFP/PFP systems, ERP and muster procedures'],
+ ['Flare flame-out or liquid carry-over','Insufficient purge gas or low gas flow during start-up','Unignited gas dispersion or liquid droplet fallout','F&amp;G detection, ESD flow isolation and PAGA alerts'],
+ ['Insufficient or unqualified start-up personnel','Inadequate POB planning, key personnel absence or insufficient training','Increased human error risk and start-up delays due to inadequate 24/7 staffing','Clear command structure, Stop Work Authority and defined ERP roles'],
+ ['Inadequate training and competency for critical tasks','Unfamiliarity with new systems (e.g. ICSS) or unclear emergency roles','Process upsets, equipment damage or ineffective emergency response due to human error','Experienced supervision, ICSS alarms / trips and Stop Work Authority'],
+];
+const LINKS1=[
+ ['M230 430 H290','b3','main'],['M500 430 H530 V403 H560','c3','main'],['M530 430 V457 H560','c3','main'],
+ ['M790 403 H820 V430 H850','sA','main'],['M790 457 H820 V430','uA','main'],
+ ['M1070 430 H1130','d3','main'],['M1320 430 H1370','e1','main'],['M1470 480 V520','e2','main'],
+ ['M130 275 V380','b1','sub'],['M130 585 V480','b2','sub'],
+ ['M395 210 V235','c1','sub'],['M395 310 V380','c2','sub'],['M395 585 V480','c4','sub'],
+ ['M675 336 V380','s10','sub'],['M675 520 V480','u11','sub'],
+ ['M960 190 V210','d1','sub'],['M960 282 V380','d2','sub'],['M960 670 V651','d5','sub'],['M960 585 V480','d4','sub'],
+];
+
+const SC1={
+ key:'prep',
+ title:'① Preparation – RFSU Pre-requisites',
+ sub:'<b style="color:#93c5fd">Blue = MAIN path</b> · <b style="color:#94a3b8">grey = SUPPORTING conditions</b> · <b style="color:#86efac">green = completed</b> · slide 8',
+ foot:'Large blue boxes and thick blue arrows = MAIN path (critical path). Grey boxes and thin grey dashed lines = SUPPORTING conditions feeding the main step beside them. Progress: pulsing outline = in progress; a box and its arrow turn GREEN when completed. Durations are compressed for viewing; content from Workshop 7-Nov (PTSC / PQPOC).',
+ s0:{risk:0},
+ legend:[['main','MAIN path (critical path)',MAINC],['sub','SUPPORTING condition (input)',SUBC],['done','Completed / online',DONEC]],
+ build(){
+  let h=`<rect x="12" y="362" width="1576" height="136" rx="10" fill="rgba(59,130,246,.06)" stroke="rgba(96,165,250,.35)" stroke-dasharray="6 6"/>
+   <text x="24" y="356" style="font-size:11.5px;fill:#93c5fd;font-weight:700;letter-spacing:.12em">MAIN PATH – CRITICAL PATH</text>
+   <text x="24" y="150" style="font-size:11px;fill:#94a3b8;font-weight:600;letter-spacing:.12em">SUPPORTING ▼</text>
+   <text x="24" y="556" style="font-size:11px;fill:#94a3b8;font-weight:600;letter-spacing:.12em">SUPPORTING ▲</text>`;
+  [[130,'DRILLING &amp; WELLS'],[395,'HANDOVER &amp; MC'],[675,'SYSTEMS AVAILABLE'],[960,'FINAL CHECKS'],[1350,'RFSU CERTIFICATE']].forEach(([x,t])=>h+=`<text x="${x}" y="34" text-anchor="middle" class="tag" style="letter-spacing:.12em;font-size:11px">${t}</text>`);
+  for(const k in BOX){const [x,y,w,hh,en,vn,kind]=BOX[k];const m=kind==='m';const fs=m?13:11.5,lh=m?16:14;
+   const lines=en.length, top=y+hh/2-(lines*lh+(vn?14:0))/2+(m?14:12);
+   h+=`<g id="bx_${k}" ${tip(en.join(' '),m?'MAIN step (critical path)':'SUPPORTING condition – must be closed before the main step it feeds')}>
+    <rect class="bxr" x="${x}" y="${y}" width="${w}" height="${hh}" rx="${m?8:5}"/>
+    <rect class="bxp" x="${x+2}" y="${y+hh-5}" width="0" height="3" rx="1.5"/>
+    ${en.map((l,i)=>`<text class="bxt" x="${x+12}" y="${top+i*lh}" style="font-size:${fs}px">${l}</text>`).join('')}
+    ${vn?`<text class="bxv" x="${x+12}" y="${top+lines*lh+1}">${vn}</text>`:''}
+    <g class="bxc" opacity="0"><circle cx="${x+w-14}" cy="${y+14}" r="9" fill="#16a34a"/><path d="M${x+w-19} ${y+14} l4 4 l7 -8" stroke="#fff" stroke-width="2.4" fill="none"/></g></g>`;}
+  const list=(x,y,w,title,items,pre)=>{let s=`<g ${tip(title,'SUPPORTING: systems that must be available (slide 8)')}><rect x="${x}" y="${y}" width="${w}" height="${34+items.length*22}" rx="5" fill="#0f172a" stroke="${SUBC}" stroke-width="1.2"/>
+    <text x="${x+12}" y="${y+22}" style="font-size:11.5px;fill:#cbd5e1;font-weight:600;letter-spacing:.06em">${title}</text>`;
+   items.forEach((it,i)=>{const yy=y+46+i*22;s+=`<g id="bx_${pre}${i}"><circle class="lic" cx="${x+20}" cy="${yy-4}" r="7"/><path class="lik" d="M${x+16} ${yy-4} l3 3 l5 -6" stroke="#fff" stroke-width="2" fill="none" opacity="0"/><text class="lit" x="${x+36}" y="${yy}">${it}</text></g>`});
+   return s+'</g>'};
+  h+=list(560,60,230,'SAFETY SYSTEMS',SAFE,'s');
+  h+=list(560,520,230,'UTILITY SYSTEMS',UTIL,'u');
+  h+=`<g id="bx_e3" ${tip('FIRST GAS','After the RFSU certificate, move on to ② Start-up.')}><rect class="bxr" x="1390" y="520" width="160" height="52" rx="26"/><text class="bxt" x="1470" y="552" text-anchor="middle" style="font-size:16px">FIRST GAS ▶</text><g class="bxc" opacity="0"></g><rect class="bxp" x="0" y="0" width="0" height="0"/></g>`;
+  h+=`<g id="riskCard" ${tip('Risk assessment (slide 22)','Main start-up hazards and their mitigation measures.')}><rect x="1110" y="600" width="480" height="232" rx="8" fill="#140f12" stroke="#7f1d1d" stroke-width="1.5"/>
+   <text x="1126" y="622" class="tag" style="fill:#fca5a5;font-weight:600;letter-spacing:.06em">KEY HAZARDS &amp; MITIGATION (slide 22)</text>
+   ${RISK.map(([a,,,b],i)=>`<g class="rk" opacity=".35"><text x="1126" y="${646+i*31}" style="font-size:12px;fill:#fecaca">⚠ ${a}</text><text x="1144" y="${660+i*31}" style="font-size:11.5px;fill:#bbf7d0">→ ${b}</text></g>`).join('')}</g>`;
+  {const C=[[60,'01  POTENTIAL HAZARDS','#fca5a5',34],[420,'02  POTENTIAL CAUSES','#fdba74',38],[800,'03  POTENTIAL CONSEQUENCES','#fde68a',38],[1190,'04  MITIGATION MEASURES','#86efac',36]];
+   h+=`<g id="riskTab" opacity="0" style="pointer-events:none"><rect x="30" y="64" width="1540" height="776" rx="12" fill="#0b1220" stroke="#7f1d1d" stroke-width="2"/>
+    <text x="60" y="98" style="font-size:16px;font-weight:700;fill:#fecaca;letter-spacing:.08em">START-UP RISK ASSESSMENT – slide 22</text><text x="1540" y="98" text-anchor="end" style="font-size:11px;fill:#94a3b8">press ◀ Previous to return to the chart</text>
+    ${C.map(([x,t,c])=>`<rect x="${x-10}" y="112" width="${x===1190?350:360}" height="30" rx="5" fill="${c}" opacity=".15"/><text x="${x}" y="132" style="font-size:12.5px;font-weight:700;fill:${c};letter-spacing:.06em">${t}</text>`).join('')}
+    ${RISK.map((row,i)=>{const y=156+i*112;return `<g class="rr" opacity="0"><line x1="50" y1="${y-6}" x2="1550" y2="${y-6}" stroke="#1f2e44"/>`+row.map((s,j)=>{const [x,,c,n]=C[j];return wrap(s,n).map((l,k)=>`<text x="${x}" y="${y+20+k*21}" style="font-size:16px;fill:${j===0?'#fee2e2':j===3?'#dcfce7':'#e2e8f0'};${j===0?'font-weight:600':''}">${l}</text>`).join('')}).join('')+`<circle cx="44" cy="${y+14}" r="0"/>`+(i<5?'':'')+'</g>'}).join('')}
+    ${[0,1,2].map(j=>`<path d="M${[400,780,1170][j]} 150 V820" stroke="#1f2e44"/>`).join('')}</g>`;}
+  return h;
+ },
+ flows(){return LINKS1.map(([d,k,t])=>t==='main'?{sys:'main',c:MAINC,cf:S=>S[k]>=1?DONEC:MAINC,d,v:S=>(S[k]>=1?1:0),w:7,dash:'10 8',base:1}:{sys:'sub',c:'#94a3b8',cf:S=>S[k]>=1?DONEC:'#94a3b8',d,v:S=>(S[k]>=1?1:0),w:2,dash:'2 6'})},
+ P:[
+  {n:'Overview',real:'Workshop 7-Nov · slides 4, 8',dur:6,
+   x:'Before hydrocarbons are introduced, every item in the <b>RFSU Pre-requisites</b> chart must be closed. The chart has two layers:<br>• <b style="color:#93c5fd">MAIN path</b> (blue band): Rig down &amp; pressure test → Systems MC &amp; pre-comm → Safety + Utility systems available → Handover Comm → Ops → <b>RFSU certificate</b> → Ready to produce HC.<br>• <b style="color:#cbd5e1">SUPPORTING conditions</b> (grey boxes above/below): must be closed before the main step beside them can close.<br><br><b>PTSC</b>: start-up plan, line-up, HC commissioning procedures, BPSOT criteria, IVS-witnessed full cascade ESD test, 72 h test criteria, ITR A/B.<br><b>PQ POC/OPS</b>: RFSU readiness criteria, PLANC, permit to work, risk assessment, isolations, personnel, training, field-wide coordination.'},
+  {n:'Drilling & wells',real:'Drilling / well',dur:8,seq:['b1','b2','b3'],
+   x:'<b style="color:#cbd5e1">Supporting</b>: drilling programme completed; wells <b>flowed back to the drill rig</b> (clean-up).<br><b style="color:#93c5fd">Main</b>: rig down, <b>pressure test and tree valve testing witnessed</b>.'},
+  {n:'Handover & MC',real:'After HUC',dur:9,seq:['c1','c2','c4','c3'],
+   x:'<b style="color:#cbd5e1">Supporting</b>: well handovers; final leak test certificates after flowline &amp; HUC; permits and consents (PLANC).<br><b style="color:#93c5fd">Main</b>: systems <b>mechanically complete and pre-commissioned</b> after HUC (slide 10: 47 sub-systems, 14 systems, 100 % pre-com passed).'},
+  {n:'Safety systems',real:'Safety systems',dur:11,seq:[...SAFE.map((_,i)=>'s'+i),'sA'],
+   x:'<b style="color:#cbd5e1">Supporting</b>: confirm the 11 safety systems – fire suppression, <b>PSD/ESD</b>, <b>F&amp;G</b>, BDVs/PSVs, ICSS, safety showers, telecomms, lifeboats, escape routes, ERT, emergency lighting.<br><b style="color:#93c5fd">Main</b>: <b>SAFETY SYSTEMS AVAILABLE</b>.'},
+  {n:'Utility systems',real:'Utility systems',dur:11,seq:[...UTIL.map((_,i)=>'u'+i),'uA'],
+   x:'<b style="color:#cbd5e1">Supporting</b>: the 12 utility systems – diesel, utility &amp; instrument air, WHCP, drains, fuel gas, flare, service water, <b>GTG</b>, nitrogen, produced water, chemicals, <b>WHR &amp; hot oil</b>.<br><b style="color:#93c5fd">Main</b>: <b>UTILITY SYSTEMS AVAILABLE</b>.'},
+  {n:'Final checks & handover',real:'Pre-RFSU',dur:10,seq:['d1','d2','d4','d5','d3'],
+   x:'<b style="color:#cbd5e1">Supporting</b>: final gross leak check and valve/instrument function test; no Cat A punch items; handover dossiers checked and onboard; PSSR + RFSU audit with all actions closed.<br><b style="color:#93c5fd">Main</b>: <b>systems handed over from Commissioning to Operations</b> for first gas.'},
+  {n:'RFSU certificate',real:'Ready For Start-Up',dur:7,seq:['e1','e2','e3'],
+   x:'The whole main path is complete → the <b>RFSU certificate</b> is issued → <b>ready to introduce hydrocarbons</b>.'},
+  {n:'Risk review before well opening',real:'Risk assessment · slide 22',dur:Infinity,on:(S,T)=>{S.risk=clamp(T*1.6)},
+   x:'Before moving to start-up, review the <b>6 key hazards</b> in the full slide 22 table (hazard → cause → consequence → mitigation): loss of containment of HP gas, utility failure, dropped objects, flare flame-out / liquid carry-over, insufficient personnel, unfamiliar new systems. Mitigation: F&amp;G, ESD, blowdown, ICSS, SDV isolation, ERP and <b>Stop Work Authority</b>.',
+   go:['startup',0,'Go to ② Hydrocarbon start-up ▶']},
+ ],
+ ro(S){const all=[...Object.keys(BOX),...SAFE.map((_,i)=>'s'+i),...UTIL.map((_,i)=>'u'+i)];const n=all.filter(k=>S[k]>=1).length;
+  const mk=Object.keys(BOX).filter(k=>BOX[k][6]==='m');
+  return [['<b style="color:#93c5fd">Main steps done</b>',`${mk.filter(k=>S[k]>=1).length} / ${mk.length}`],['All items closed',`${n} / ${all.length}`],
+   ['Safety systems',SAFE.filter((_,i)=>S['s'+i]>=1).length+' / '+SAFE.length],['Utility systems',UTIL.filter((_,i)=>S['u'+i]>=1).length+' / '+UTIL.length],
+   ['Sub-systems ready (slide 10)','47'],['Systems ready','14'],['Pre-com passed','100 %'],
+   ['RFSU certificate',S.e1>=1?chip('ok','ISSUED'):chip('','NOT YET')]]},
+ roTitle:'Progress',
+ draw(S,now){
+  const pulse=0.5+0.5*Math.sin(now/220);
+  for(const k of [...Object.keys(BOX),'e3']){const g=$('bx_'+k);if(!g)continue;const v=S[k]||0;const r=g.querySelector('.bxr');const m=!BOX[k]||BOX[k][6]==='m';
+   const st=v>=1?2:v>0?1:0;
+   if(g._st!==st||st===1){g._st=st;
+    if(m){r.setAttribute('fill',st===2?'#0d3a24':st===1?'#132c52':'#0f1f3a');r.setAttribute('stroke',st===2?DONEC:st===1?'#93c5fd':MAINC);r.setAttribute('stroke-width',st===1?(3+2.5*pulse).toFixed(2):3);r.setAttribute('stroke-dasharray','0');}
+    else{r.setAttribute('fill',st===2?'#0b2a1b':'#0f172a');r.setAttribute('stroke',st===2?'#16a34a':st===1?'#cbd5e1':SUBC);r.setAttribute('stroke-width',st===1?(1.2+1.5*pulse).toFixed(2):1.3);r.setAttribute('stroke-dasharray',st===0?'5 3':'0');}
+    g.querySelectorAll('.bxt').forEach(t=>t.setAttribute('fill',m?(st===2?'#dcfce7':'#e6efff'):(st===2?'#bbf7d0':st===1?'#fff':'#94a3b8')));
+    g.querySelectorAll('.bxv').forEach(t=>t.setAttribute('fill','#94a3b8'));
+    g.querySelector('.bxc').setAttribute('opacity',st===2?1:0);}
+   const p=g.querySelector('.bxp');if(BOX[k])p.setAttribute('width',(BOX[k][2]-4)*clamp(v));p.setAttribute('fill',v>=1?DONEC:(m?'#93c5fd':'#cbd5e1'));}
+  for(const pre of ['s','u']){(pre==='s'?SAFE:UTIL).forEach((_,i)=>{const g=$('bx_'+pre+i);const v=S[pre+i]||0;
+   g.querySelector('.lic').setAttribute('fill',v>=1?'#16a34a':v>0?'#475569':'#0f172a');
+   g.querySelector('.lic').setAttribute('stroke',v>=1?'#4ade80':v>0?'#e2e8f0':'#475569');
+   g.querySelector('.lik').setAttribute('opacity',v>=1?1:0);
+   g.querySelector('.lit').setAttribute('fill',v>=1?'#e2e8f0':v>0?'#fff':'#7c8aa0');});}
+  const rc=$('riskCard');const rv=S.risk||0;rc.querySelectorAll('.rk').forEach((e,i)=>e.setAttribute('opacity',(0.35+0.65*clamp(rv*6-i)).toFixed(2)));
+  rc.querySelector('rect').setAttribute('stroke-width',rv>0?(1.5+1.5*pulse).toFixed(2):1.5);
+  const rt=$('riskTab');if(!rt._top){svg.appendChild(rt);rt._top=1}rt.setAttribute('opacity',clamp(rv*3).toFixed(2));rt.querySelectorAll('.rr').forEach((e,i)=>e.setAttribute('opacity',clamp(rv*8-i*.6).toFixed(2)));
+ },
+};
+
+/* =====================================================================
+   SCENARIO 2 – KHÂU START-UP HYDROCARBON
+   Vẽ theo toạ độ PFD PQ-CPPT-PRO-PFD-MPC-00001-01 (ảnh gốc 1593×960 px, scale 0.866)
+   ===================================================================== */
+const K={gas:'#facc15',hot:'#fb923c',flare:'#f87171',fg:'#fde68a',dsl:'#a3a3a3',teg:'#2dd4bf',oil:'#ef4444',pw:'#4ade80',cond:'#e8957a',meoh:'#c084fc',vru:'#fda4af'};
+const TF='translate(10 8) scale(0.866)';
+const sx=x=>10+0.866*x, sy=y=>8+0.866*y;
+// areas: r = rects in PFD coords (abs:true → SVG coords)
+const AREA={
+ inlet:{r:[[5,240,135,330]],t:'Inlet / Receivers',lp:[2,186]},
+ sep:{r:[[140,55,125,330]],t:'Separation',lp:[131,0]},
+ prod:{r:[[268,55,262,320]],t:'Production Compression',lp:[242,0]},
+ whru:{r:[[300,240,80,130]],t:'',lp:[-50,-50]},
+ gly:{r:[[532,55,200,400]],t:'Glycol Dehydration',lp:[471,0]},
+ dew:{r:[[737,55,280,240]],t:'Dew Point Control',lp:[648,0]},
+ mru:{r:[[1020,55,135,345]],t:'Mercury Removal',lp:[893,0]},
+ pipe:{r:[[1160,55,375,215]],t:'Pipeline Compression',lp:[1032,0]},
+ met:{r:[[1250,275,330,140]],t:'Metering'},
+ pw:{r:[[135,600,330,345],[465,838,250,107]],t:'Water Treatment'},
+ cond:{r:[[470,465,630,370]],t:'Condensate Stabilization'},
+ cex:{r:[[1100,745,480,210]],t:'Condensate Export',lp:[sx(1104),sy(935)]},
+ vru:{r:[[1108,452,430,283]],t:'Vapour Recovery Compression'},
+ fgp:{r:[[1395,8,320,186]],t:'Fuel Gas System',abs:1},
+ flare:{r:[[1395,200,320,150]],t:'Flare HP / LP',abs:1,lp:[1395,194]},
+ gtg:{r:[[1395,345,320,115]],t:'GTG Package',abs:1,lp:[1395,340]},
+};
+const AST=[{f:'#f472b6',s:'#f472b6',t:'Isolated – prepared for commissioning'},{f:'#facc15',s:'#facc15',t:'Online – awaiting commissioning completion'},{f:'#4ade80',s:'#4ade80',t:'Process live'}];
+const s0_2={byp:0,liq:0,w1:0,w2:0,w3:0,meoh:0,aqwa:0,flare:0,pilot:0,teg:0,hot:0,dsl:0,gtgP:0,gtgMode:0,fg:0,pw:0,cond:0,crec:0,cexp:0,vru:0,gtc:0,rec:0,fwd:0,q:0,flq:0,fgq:0,mos:0};
+Object.keys(AREA).forEach(k=>s0_2['A_'+k]=0);
+const UTK=['pwr', 'ia', 'ua', 'n2', 'dsl', 'sw', 'drn', 'esd', 'flr', 'fgs', 'hot', 'teg', 'meoh', 'chem'];UTK.forEach(k=>s0_2['U_'+k]=0);
+const U=o=>{const r={};for(const k in o)r['U_'+k]=o[k];return r};
+const A=o=>{const r={};for(const k in o)r['A_'+k]=o[k];return r};
+const gasT=S=>Math.max(S.gtc,S.fwd);
+const svgRect=(k,i)=>{const a=AREA[k],r=a.r[i||0];return a.abs?r:[sx(r[0]),sy(r[1]),r[2]*0.866,r[3]*0.866]};
+
+// ---- symbol helpers (PFD coords) ----
+const T=(x,y,s,o)=>`<text x="${x}" y="${y}" class="${(o&&o.c)||'ptg'}" ${o&&o.a?`text-anchor="${o.a}"`:''} ${o&&o.st?`style="${o.st}"`:''}>${s}</text>`;
+function vV(x,y,w,h,lab,fill){return `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${w/2}" fill="${fill||'#1c3555'}" stroke="#4f7fae" stroke-width="2"/>`+(lab?`<text x="${x+w/2}" y="${y+h/2+5}" text-anchor="middle" class="pvt" transform="rotate(-90 ${x+w/2} ${y+h/2})">${lab}</text>`:'')}
+function vH(x,y,w,h,lab,fill){return `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${h/2}" fill="${fill||'#1c3555'}" stroke="#4f7fae" stroke-width="2"/>`+(lab?`<text x="${x+w/2}" y="${y+h/2+5}" text-anchor="middle" class="pvt">${lab}</text>`:'')}
+function filt(x,y,w,h,lab){return vV(x,y,w,h,'')+`<line x1="${x+w-3}" y1="${y+6}" x2="${x+3}" y2="${y+h-6}" stroke="#7fb0dc" stroke-dasharray="4 3"/>`+(lab?T(x+w+5,y+h/2+4,lab,{c:'pvt'}):'')}
+function hx(cx,cy,r,id){return `<circle ${id?`id="${id}"`:''} cx="${cx}" cy="${cy}" r="${r}" fill="#1c3555" stroke="#9cc4ea" stroke-width="2"/><path d="M${cx-r*.7} ${cy+r*.35} L${cx-r*.25} ${cy-r*.45} L${cx+r*.15} ${cy+r*.45} L${cx+r*.6} ${cy-r*.35}" stroke="#9cc4ea" stroke-width="2" fill="none"/>`}
+function fan(id,cx,cy,r){return `<g id="${id}" class="rot" data-cx="${cx}" data-cy="${cy}"><circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="#4f7fae" stroke-width="1.5"/>${[0,120,240].map(a=>`<ellipse cx="${cx}" cy="${cy-r*0.5}" rx="${r*0.22}" ry="${r*0.45}" fill="#7fb0dc" transform="rotate(${a} ${cx} ${cy})"/>`).join('')}<circle cx="${cx}" cy="${cy}" r="${r*0.15}" fill="#cfe0f5"/></g>`}
+function cooler(id,x,y,w,lab){return `<rect x="${x}" y="${y}" width="${w}" height="16" fill="#1c3555" stroke="#4f7fae" stroke-width="2"/>${Array.from({length:Math.floor(w/12)},(_,i)=>`<line x1="${x+8+i*12}" y1="${y+2}" x2="${x+8+i*12}" y2="${y+14}" stroke="#4f7fae"/>`).join('')}${fan(id,x+w/2,y+30,12)}`+(lab?T(x+w/2,y-6,lab,{c:'pvt',a:'middle'}):'')}
+function imp(id,cx,cy,r){return `<g id="${id}" class="rot" data-cx="${cx}" data-cy="${cy}"><circle cx="${cx}" cy="${cy}" r="${r}" fill="#24476f" stroke="#8fb3da" stroke-width="1.5"/>${[0,1,2,3,4,5].map(i=>`<path d="M${cx} ${cy} q${r*0.15} ${-r*0.6} ${r*0.65} ${-r*0.85}" stroke="#d6e4f5" stroke-width="1.6" fill="none" transform="rotate(${i*60} ${cx} ${cy})"/>`).join('')}</g>`}
+function comp(id,x,y,w,h,lab,rev){const d=rev?`M${x} ${y+h*.22} L${x+w} ${y} L${x+w} ${y+h} L${x} ${y+h*.78} Z`:`M${x} ${y} L${x+w} ${y+h*.22} L${x+w} ${y+h*.78} L${x} ${y+h} Z`;
+ return `<path d="${d}" fill="#163050" stroke="#4f7fae" stroke-width="2"/>${imp(id,x+w/2,y+h/2,Math.min(w,h)*0.3)}`+(lab?T(x+w/2,y-6,lab,{c:'pvt',a:'middle'}):'')}
+function pmp(id,cx,cy,r,lab){return `<circle cx="${cx}" cy="${cy}" r="${r}" fill="#1c3555" stroke="#4f7fae" stroke-width="2"/><g id="${id}" class="rot" data-cx="${cx}" data-cy="${cy}">${[0,90,180,270].map(a=>`<path d="M${cx} ${cy} q${r*0.5} ${-r*0.2} ${r*0.75} ${-r*0.7}" stroke="#9cc4ea" stroke-width="2" fill="none" transform="rotate(${a} ${cx} ${cy})"/>`).join('')}</g>`+(lab?T(cx,cy+r+14,lab,{a:'middle',st:'font-size:11px'}):'')}
+let VID=0;function vlv(x,y,vert,id){id=id||('vx'+(VID++));const p=vert?`M${x-6} ${y-8} L${x+6} ${y-8} L${x-6} ${y+8} L${x+6} ${y+8} Z`:`M${x-8} ${y-6} L${x-8} ${y+6} L${x+8} ${y-6} L${x+8} ${y+6} Z`;
+ const st=vert?`M${x} ${y} H${x+11} M${x+11} ${y-4} V${y+4}`:`M${x} ${y} V${y-11} M${x-4} ${y-11} H${x+4}`;
+ return `<g class="vlvg"><path d="${st}" stroke="#94a3b8" stroke-width="1.6"/><path id="${id}" class="vlv" d="${p}" fill="#dc2626" stroke="#fecaca" stroke-width="1.2"/></g>`}
+function arr(x,y,dir){const s={r:`M${x-7} ${y-5} L${x} ${y} L${x-7} ${y+5}`,l:`M${x+7} ${y-5} L${x} ${y} L${x+7} ${y+5}`,d:`M${x-5} ${y-7} L${x} ${y} L${x+5} ${y-7}`,u:`M${x-5} ${y+7} L${x} ${y} L${x+5} ${y+7}`}[dir];return `<path d="${s}" fill="none" stroke="#8fb3da" stroke-width="1.6"/>`}
+function gturb(x,y,w,h,cid,rid){const X=f=>x+w*f;return `<path d="M${x} ${y+h*.15} L${X(.12)} ${y+h*.3} L${X(.12)} ${y+h*.7} L${x} ${y+h*.85} Z" fill="#1c3555" stroke="#4f7fae" stroke-width="1.5"/>
+ <path d="M${X(.12)} ${y+h*.3} L${X(.45)} ${y+h*.4} L${X(.45)} ${y+h*.6} L${X(.12)} ${y+h*.7} Z" fill="#163050" stroke="#4f7fae" stroke-width="1.5"/>
+ ${[.18,.24,.30,.36,.42].map(f=>`<line x1="${X(f)}" y1="${y+h*(.33+f*.1)}" x2="${X(f)}" y2="${y+h*(.67-f*.1)}" stroke="#9cc4ea" stroke-width="1.5"/>`).join('')}
+ <rect id="${cid}" x="${X(.45)}" y="${y+h*.28}" width="${w*.15}" height="${h*.44}" rx="${h*.12}" fill="#2a2030" stroke="#8a6a80" stroke-width="1.5"/>
+ <path d="M${X(.6)} ${y+h*.36} L${X(.84)} ${y+h*.2} L${X(.84)} ${y+h*.8} L${X(.6)} ${y+h*.64} Z" fill="#2a2030" stroke="#8a6a80" stroke-width="1.5"/>
+ ${[.66,.72,.78].map(f=>`<line x1="${X(f)}" y1="${y+h*(.36-(f-.6)*.65)}" x2="${X(f)}" y2="${y+h*(.64+(f-.6)*.65)}" stroke="#e8a48a" stroke-width="1.5"/>`).join('')}
+ <rect x="${X(.84)}" y="${y}" width="${w*.16}" height="${h}" fill="#2c2228" stroke="#8a6a80" stroke-width="1.5"/>
+ <line x1="${X(.06)}" y1="${y+h/2}" x2="${X(.84)}" y2="${y+h/2}" stroke="#8aa0b8" stroke-width="2"/>
+ ${rid?imp(rid+'c',X(.2),y+h/2,h*.2)+imp(rid+'k',X(.36),y+h/2,h*.15)+imp(rid+'t',X(.73),y+h/2,h*.22):''}`}
+function pigL(x,y,w,tag,sub,dir){/* x = closure end, dir 1 = flow to the right */const h=20,cy=y,bw=w*.62,rw=w*.18,nw=w*.12;const X=f=>dir>0?x+f:x-f;
+ const bx0=X(6),bx1=X(6+bw),rx1=X(6+bw+rw),nx1=X(6+bw+rw+nw);const L=Math.min(bx0,bx1),R=Math.max(bx0,bx1);
+ return `<rect x="${Math.min(x,X(6))}" y="${cy-h/2-2}" width="6" height="${h+4}" rx="2" fill="#475569" stroke="#cbd5e1" stroke-width="1"/>
+ <line x1="${X(3)}" y1="${cy-h/2-2}" x2="${X(3)}" y2="${cy-h/2-6}" stroke="#cbd5e1" stroke-width="1.4"/>
+ <rect x="${L}" y="${cy-h/2}" width="${R-L}" height="${h}" fill="url(#pigG)" stroke="#cbd5e1" stroke-width="1.2"/>
+ <path d="M${bx1} ${cy-h/2} L${rx1} ${cy-h/4} L${rx1} ${cy+h/4} L${bx1} ${cy+h/2} Z" fill="url(#pigG)" stroke="#cbd5e1" stroke-width="1.2"/>
+ <rect x="${Math.min(rx1,nx1)}" y="${cy-h/4}" width="${Math.abs(nx1-rx1)}" height="${h/2}" fill="url(#pigG)" stroke="#cbd5e1" stroke-width="1"/>
+ <ellipse cx="${(L+R)/2}" cy="${cy}" rx="${(R-L)*.22}" ry="${h*.28}" fill="#f59e0b" stroke="#b45309" stroke-width="1"/>
+ <text x="${(L+R)/2}" y="${cy-h/2-5}" text-anchor="middle" style="font-size:10px;fill:#f1f5f9;font-weight:700">${tag}</text>
+ ${sub?`<text x="${(L+R)/2}" y="${cy+h/2+12}" text-anchor="middle" style="font-size:8.5px;fill:#94a3b8;letter-spacing:.04em">${sub}</text>`:''}`}
+function flm(id,cx,cy,s){return `<g id="${id}" opacity="0" filter="url(#glow2)"><ellipse cx="${cx}" cy="${cy}" rx="${9*s}" ry="${20*s}" fill="url(#flm2)"/><ellipse cx="${cx}" cy="${cy+6*s}" rx="${5*s}" ry="${10*s}" fill="#fff7c2" opacity=".8"/></g>`}
+function stub(x1,y1,x2,y2,lab,o){return `<path d="M${x1} ${y1} L${x2} ${y2}" stroke="#5f7593" stroke-width="1.5" fill="none" stroke-dasharray="${o&&o.dash?'5 4':'0'}"/>${arr(x2,y2,o&&o.dir||(x2>x1?'r':x2<x1?'l':y2>y1?'d':'u'))}`+(lab?T(o&&o.tx!=null?o.tx:x2+(x2>=x1?6:-6),(o&&o.ty!=null?o.ty:y2+4),lab,{a:o&&o.a||(x2>=x1?'start':'end'),st:'font-size:11px'}):'')}
+
+const SC2={
+ key:'startup',
+ title:'② Start-up & hydrocarbon commissioning – Train 1',
+ sub:'Drawn from overall PFD PQ-CPPT-PRO-PFD-MPC-00001-01 and the BB1 Process Description · sequence per slides 12 → 25 (Workshop 7-Nov)',
+ foot:'Flow paths follow PFD PQ-CPPT-PRO-PFD-MPC-00001-01 (Train 1 only, “to/from Train 2” lines omitted). Right column: fuel gas system, flare and GTG per the BB1 Process Description. Coloured dot beside each section = slide 12 status (pink = isolated, yellow = online awaiting completion, green = live). In each step the systems being commissioned are highlighted, the rest is dimmed. 30.08 / 17 / 47.08 MMSCFD and 120–140 m³/h are from slides 19, 24, 25; intermediate figures are illustrative only.',
+ s0:s0_2, tf:TF, vb:'0 0 1720 850',
+ legend:[['gas','Process gas',K.gas],['flare','Gas to flare',K.flare],['fg','Fuel gas',K.fg],['dsl','Diesel',K.dsl],['teg','TEG (glycol)',K.teg],['oil','Hot oil',K.oil],['cond','Condensate / HC liquid',K.cond],['vru','Vapour to / from VRU',K.vru],['pw','Produced water',K.pw],['meoh','Methanol',K.meoh]],
+ status:true,
+ build(){
+  let h=`<defs><linearGradient id="pigG" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#cbd5e1"/><stop offset=".45" stop-color="#64748b"/><stop offset="1" stop-color="#334155"/></linearGradient>
+   <linearGradient id="fsoHull" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#475569"/><stop offset=".45" stop-color="#334155"/><stop offset=".5" stop-color="#7f1d1d"/><stop offset="1" stop-color="#450a0a"/></linearGradient>
+   <linearGradient id="fsoSup" x1="0" x2="1"><stop offset="0" stop-color="#e2e8f0"/><stop offset="1" stop-color="#94a3b8"/></linearGradient>
+   <clipPath id="fsoClip"><rect x="1240" y="938" width="345" height="14"/></clipPath>
+   <linearGradient id="whBody" x1="0" x2="1"><stop offset="0" stop-color="#7f1d1d"/><stop offset=".5" stop-color="#b91c1c"/><stop offset="1" stop-color="#6b1414"/></linearGradient>
+   <linearGradient id="whHeat" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#fca5a5" stop-opacity=".5"/><stop offset=".6" stop-color="#ef4444" stop-opacity=".2"/><stop offset="1" stop-color="#ef4444" stop-opacity="0"/></linearGradient>
+   <linearGradient id="whStack" x1="0" x2="1"><stop offset="0" stop-color="#3f3a40"/><stop offset=".5" stop-color="#5b5560"/><stop offset="1" stop-color="#34303a"/></linearGradient>
+   <linearGradient id="whDuct" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#7c2d12"/><stop offset="1" stop-color="#3b2a1d"/></linearGradient>
+   <radialGradient id="flm2" cx=".5" cy=".65" r=".6"><stop offset="0" stop-color="#fff7c2"/><stop offset=".4" stop-color="#fbbf24"/><stop offset=".8" stop-color="#ea580c"/><stop offset="1" stop-color="#ea580c" stop-opacity="0"/></radialGradient>
+   <filter id="glow2"><feGaussianBlur stdDeviation="3"/><feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs><g id="areas">`;
+  for(const k in AREA){const a=AREA[k];const [x,y]=a.lp?a.lp:svgRect(k,0);h+=`<g id="ar_${k}"><circle cx="${x+9}" cy="${y+8}" r="4.5"/><text x="${x+18}" y="${y+12}" class="atx">${a.t}</text></g>`}
+  return h+'</g>';
+ },
+ equip(){return `<g data-pfd="1" transform="${TF}">
+  <!-- ===== INLET ===== -->
+  <g ${tip('R-3201 / R-3202 / R-3203 · Pig receivers','Flow from the 03 wells / hub platforms arrives via trunkline (typical of 3) and rises into the inlet manifold. Opened one by one at HC start-up.')}>
+   ${[470,505,540].map((y,i)=>`<path d="M42 ${y-8} H95 V${y+8} H42 Z" fill="#1c3555" stroke="#4f7fae" stroke-width="1.5"/><path d="M95 ${y-8} Q104 ${y} 95 ${y+8}" fill="#1c3555" stroke="#4f7fae" stroke-width="1.5"/>${vlv(28,y,0,'wv'+(i+1))}${T(68,y+4,'R-320'+(i+1),{a:'middle',st:'font-size:10.5px;fill:#cfe0f5'})}`).join('')}
+   ${T(10,445,'From 03 wells / hub',{st:'font-size:11px'})}${T(10,458,'platforms (trunkline)',{st:'font-size:11px'})}</g>
+  <g ${tip('Methanol injection','Methanol injection to the wellheads for hydrate prevention – dynamic commissioning when wells are opened (slide 14).')}><rect x="10" y="575" width="105" height="22" rx="4" fill="#2a1a3d" stroke="#c084fc"/>${T(62,590,'MeOH injection',{a:'middle',st:'font-size:11px;fill:#e9d5ff'})}</g>
+  <g ${tip('Gas from AQWA via bridge','Gas from AQWA via the bridge – gas source for fuel gas commissioning and GTC full recycle.')}><path d="M12 321 H52 L61 330 L52 339 H12 Z" fill="#1c3555" stroke="#4f7fae"/>${T(12,355,'GAS FROM AQWA',{st:'font-size:10.5px'})}${T(12,367,'VIA BRIDGE',{st:'font-size:10.5px'})}</g>
+  <g ${tip('Inlet manifold','Inlet header: collects receivers R-3201/2/3, AQWA gas and VRC return, then feeds V-1001.')}><rect x="30" y="265" width="92" height="10" fill="#cbd5e1"/><path d="M18 270 L27 261 L36 270 L27 279 Z" fill="#e2e8f0"/><path d="M116 270 L125 261 L134 270 L125 279 Z" fill="#e2e8f0"/>${T(30,254,'INLET MANIFOLD',{st:'font-size:11px;fill:#e2e8f0;font-weight:600'})}</g>
+  <!-- ===== SEPARATION ===== -->
+  <g ${tip('V-1001 · Inlet separator','3-phase inlet / production separator. Gas to V-1102 (and the fuel gas branch); HC liquid to V-3402; water to produced water treatment.')}>${vH(147,300,74,40,'V-1001')}</g>
+  ${T(222,34,'→ FUEL GAS SYSTEM',{st:'font-size:10.5px;fill:#fde68a'})}
+  <!-- ===== PRODUCTION COMPRESSION ===== -->
+  ${vlv(262,199,0,'vSDV')}${T(250,184,'SDV',{st:'font-size:10px'})}
+  ${vlv(1396,348,0,'vEXP')}${vlv(1420,812,0,'vCEX')}${vlv(36,330,0,'vAQ')}
+  <g ${tip('V-1102 · Production compressor suction scrubber','Removes liquid ahead of C-1101; liquid to V-3402. Inlet also receives anti-surge, hot gas bypass and overall train recycle.')}>${vV(307,165,29,63,'V-1102')}</g>
+  ${vlv(355,149,0,'vSU1')}
+  ${stub(321,228,321,244,'TO V-3402',{tx:316,ty:246,a:'end'})}
+  <g ${tip('C-1101 · Production compressor','Centrifugal compressor (2BCL456/A), driven by GT-1101 via gearbox ZZ-1101 (Note 8).')}>${comp('i1101',378,325,50,43,'')}${T(432,352,'C-1101',{c:'pvt'})}</g>
+  <g ${tip('GT-1101 · LM2500+G4 SAC gas turbine','GTC driver: 17-stage axial compressor, annular combustor, HP turbine and free power turbine. Power turbine → shaft → gearbox ZZ-1101 → C-1101 (and C-1501) on one common shaft line (Note 8). Fuel gas enters the combustor; exhaust collector discharges up through WHRU E-5601A.')}>
+   ${gturb(222,326,124,40,'gtA','rgt')}${T(222,320,'GT-1101',{c:'pvt',st:'font-size:12px'})}${T(222,384,'LM2500+G4 SAC',{st:'font-size:10px'})}
+   <line x1="346" y1="346" x2="378" y2="346" stroke="#a8b8cc" stroke-width="5"/><line x1="346" y1="346" x2="378" y2="346" stroke="#475569" stroke-width="1.5" stroke-dasharray="3 3"/>
+   <rect x="352" y="335" width="20" height="22" rx="3" fill="#16304e" stroke="#9cc4ea" stroke-width="1.5"/><circle cx="362" cy="342" r="4" fill="none" stroke="#9cc4ea"/><circle cx="362" cy="351" r="3" fill="none" stroke="#9cc4ea"/>
+   ${T(362,372,'ZZ-1101',{a:'middle',st:'font-size:9px'})}</g>
+  ${flm('gtFlame',286,346,.5)}
+  <g ${tip('E-1102 · Production compressor after cooler','Air cooler after C-1101, with temperature-control bypass for hydrate inhibition.')}>${cooler('f1102',428,125,72,'E-1102')}</g>
+  ${vlv(397,81,0,'vAS1')}${T(300,97,'ANTI-SURGE',{st:'font-size:10px'})}${vlv(379,119,0,'vHG1')}${vlv(424,106,1,'vTC1')}${T(432,96,'TEMP. CONTROL (HYDRATE)',{st:'font-size:8.5px'})}${T(300,113,'HOT GAS BYPASS',{st:'font-size:10px'})}
+  ${vlv(760,45,0,'vTR')}${T(700,38,'OVERALL TRAIN RECYCLE',{st:'font-size:10.5px'})}
+  <!-- ===== WHRU (on GT-1101 exhaust) ===== -->
+  <g ${tip('WHRU E-5601A/B · Hot oil (System 56)','Waste heat recovery unit sitting on the GT-1101 exhaust stack, heating Therminol hot oil: storage &amp; expansion tank, supply/return headers, WHRU No.1/No.2, trim cooler. Supplies E-1303, reboiler E-3402A/B and glycol regeneration. Pre-HC: hot oil circulation online through 1 x WHRU.')}>
+   <path d="M326 326 L326 318 L344 318 L346 326 Z" fill="url(#whDuct)" stroke="#8a6a80" stroke-width="1"/>
+   <rect x="318" y="276" width="34" height="42" rx="3" fill="url(#whBody)" stroke="#fca5a5" stroke-width="1.4"/>
+   <rect x="320" y="278" width="30" height="38" rx="2" fill="url(#whHeat)" id="whHeat" opacity="0"/>
+   ${[286,297,308].map(y=>`<line class="whT" x1="322" y1="${y}" x2="348" y2="${y}" stroke="#6b3a1f" stroke-width="2.6" stroke-linecap="round"/>${[326,331,336,341,346].map(x=>`<line class="whF" x1="${x}" y1="${y-3}" x2="${x}" y2="${y+3}" stroke="#6b3a1f" stroke-width=".8"/>`).join('')}`).join('')}
+   <rect x="352" y="279" width="5" height="8" rx="1.5" fill="#c2410c"/><rect x="352" y="303" width="5" height="8" rx="1.5" fill="#7c2d12"/>
+   <path d="M324 276 L327 252 L343 252 L346 276 Z" fill="url(#whStack)" stroke="#8a6a80" stroke-width="1"/>
+   <rect x="325" y="247" width="20" height="6" rx="2" fill="#475569" stroke="#94a3b8" stroke-width=".8"/>
+   <g id="whSmoke">${[0,1,2,3,4,5].map(i=>`<circle class="whP" cx="335" cy="300" r="${2+i%3}" fill="#fca5a5" opacity="0"/>`).join('')}</g>
+   ${T(314,270,'WHRU',{a:'end',st:'font-size:9.5px;fill:#fca5a5;font-weight:700'})}</g>
+  <!-- ===== GLYCOL ===== -->
+  <g ${tip('V-1202 · Glycol contactor','TEG absorber: gas in at the bottom, lean TEG in at the top via E-1202, rich TEG out at the bottom to regeneration. Pre-HC: TEG in hot recirculation.')}>${vV(540,168,52,202,'')}<line x1="540" y1="215" x2="592" y2="300" stroke="#4f7fae" stroke-dasharray="5 4"/><line x1="592" y1="215" x2="540" y2="300" stroke="#4f7fae" stroke-dasharray="5 4"/><line x1="540" y1="215" x2="592" y2="215" stroke="#4f7fae" stroke-dasharray="5 4"/><line x1="540" y1="300" x2="592" y2="300" stroke="#4f7fae" stroke-dasharray="5 4"/>${T(566,200,'V-1202',{c:'pvt',a:'middle'})}</g>
+  <g ${tip('E-1202 · Gas / lean glycol exchanger','Dry gas leaving V-1202 cools the lean TEG before it enters the column.')}>${hx(626,188,12)}${T(642,176,'E-1202',{c:'pvt'})}</g>
+  <g ${tip('F-1202 · Glycol carry-over filter','Removes glycol carry-over from the gas; liquid to glycol regeneration.')}>${filt(663,210,22,52,'F-1202')}</g>
+  <g id="regen" data-hl="whru" ${tip('Glycol Regeneration System','Regenerates rich TEG: hot oil and fuel gas supply, vent to LP flare, water and recovered condensate to closed drain.')}><rect x="690" y="318" width="72" height="120" fill="none" stroke="#2dd4bf" stroke-width="1.5" stroke-dasharray="6 3"/>${T(726,370,'GLYCOL',{a:'middle',st:'font-size:11px;fill:#99f6e4;font-weight:600'})}${T(726,384,'REGEN.',{a:'middle',st:'font-size:11px;fill:#99f6e4;font-weight:600'})}</g>
+  ${T(640,330,'RICH GLYCOL',{st:'font-size:10px'})}
+  <!-- ===== DEW POINT ===== -->
+  <g ${tip('E-1302-01/02 · Gas/gas exchanger','Warm gas from F-1202 exchanges heat with cold gas from V-1303 before V-1302.')}>${hx(756,160,13)}${T(722,128,'E-1302-01/02',{c:'pvt',st:'font-size:11.5px'})}</g>
+  <g ${tip('V-1302 · Expander inlet separator','Removes liquid ahead of EXP-1301; liquid to V-3402.')}>${vV(786,129,28,65,'V-1302')}</g>
+  ${stub(800,194,800,280,'TO V-3402',{tx:794,ty:278,a:'end'})}
+  ${vlv(820,160,1,'vJT')}${T(826,182,'JT VALVE',{st:'font-size:9.5px;fill:#86efac'})}${vlv(838,118,0,'vEXPi')}${vlv(970,150,1,'vC13b')}${vlv(927,183,1,'vC13i')}${T(966,80,'C-1301 BYPASS',{a:'end',st:'font-size:8.5px'})}
+  <g ${tip('EXP-1301 / C-1301 · Turbo-expander','At start-up the expander is NOT run: gas is bypassed through the JT valve to V-1303 and C-1301 is bypassed. In normal operation gas expands through EXP-1301 into V-1303 (cold, dew point control). Cold gas returns through E-1302 and is recompressed by C-1301 (same shaft) before the MRU.')}>
+   ${comp('iexp',842,129,51,41,'EXP-1301',0)}${comp('ic1301',911,129,51,41,'C-1301',1)}<line x1="893" y1="150" x2="911" y2="150" stroke="#8aa0b8" stroke-width="3"/></g>
+  <g ${tip('V-1303 · Expander outlet (cold) separator','Cold separator: cold gas overhead to E-1302; liquid through E-1303 (hot oil) to V-3402.')}>${vV(979,147,28,65,'V-1303')}</g>
+  <g data-hl="whru" ${tip('E-1303 · Cold liquid heater','Heats V-1303 liquid with hot oil before it goes to V-3402.')}>${hx(952,247,12,'e1303')}${T(968,268,'E-1303',{c:'pvt',st:'font-size:11.5px'})}${T(988,244,'HOT OIL IN',{st:'font-size:8.5px;fill:#fca5a5'})}${T(912,243,'HOT OIL OUT',{a:'end',st:'font-size:8.5px;fill:#fca5a5'})}</g>
+  <!-- ===== MRU ===== -->
+  <g ${tip('F-1401 · MRU inlet filter','Removes liquid ahead of the mercury absorber; liquid to V-3402.')}>${filt(1035,65,22,46,'F-1401')}</g>
+  <g ${tip('V-1401 · Mercury removal bed','Gas mercury absorber.')}>${vV(1055,208,29,65,'V-1401','#3a2f0d')}</g>
+  <g ${tip('F-1402 · MRU outlet filter','Catches absorbent fines after V-1401; drains to closed drain drum.')}>${filt(1087,299,21,48,'F-1402')}</g>
+  ${stub(1138,263,1158,263,'TO FUEL GAS (LOW BTU)',{ty:288,tx:1112,a:'start'})}
+  <path d="M1015 89 V392 H1138" stroke="#5f7593" stroke-dasharray="5 4" fill="none"/>${T(1020,385,'BYPASS – NORMALLY NO FLOW',{st:'font-size:9.5px'})}
+  <!-- ===== PIPELINE ===== -->
+  <g ${tip('V-1501 · Pipeline compressor suction scrubber','Removes liquid ahead of C-1501; liquid to V-3402. Inlet receives C-1501 anti-surge and hot gas bypass.')}>${vV(1209,149,28,61,'V-1501')}</g>
+  ${stub(1223,210,1223,250,'TO V-3402',{tx:1230,ty:252,a:'start'})}
+  <g ${tip('C-1501 · Pipeline compressor','Centrifugal export compressor, driven by the same GT-1101 as C-1101 (Note 8).')}>${comp('i1501',1317,173,51,40,'')}${T(1342,229,'C-1501',{c:'pvt',a:'middle'})}</g>
+  <g ${tip('GT-1101 (Note 8)','The same GT-1101 drives C-1101 and C-1501.')}><rect x="1315" y="236" width="55" height="25" fill="#2a2030" stroke="#8a6a80" stroke-dasharray="4 3" stroke-width="1.5"/>${T(1342,253,'GT-1101',{a:'middle',st:'font-size:11px;fill:#e6f0ff'})}</g>
+  <g ${tip('E-1501 · Pipeline compressor after cooler','Air cooler after C-1501; train recycle / anti-surge branches off downstream, the rest goes to metering.')}>${cooler('f1501',1439,132,66,'E-1501')}</g>
+  ${vlv(1333,62,0,'vAS2')}${T(1185,77,'ANTISURGE',{st:'font-size:10px'})}${vlv(1272,88,0,'vHG2')}${T(1185,103,'HOT GAS BYPASS',{st:'font-size:10px'})}
+  ${vlv(1527,236,1,'vOUT')}${T(1520,252,'OUTLET',{a:'end',st:'font-size:9.5px'})}
+  ${T(1395,212,'START-UP SEAL GAS → DGS',{st:'font-size:9.5px'})}
+  <!-- ===== METERING ===== -->
+  <g ${tip('PK-3101/2/3 · Sales gas metering','3 sales gas metering runs; L-3301 export gas pig launcher.')}>
+   <rect x="1286" y="296" width="99" height="105" fill="#16304e" stroke="#4f7fae" stroke-dasharray="6 3"/>${[315,348,381].map(y=>`<line x1="1292" y1="${y}" x2="1380" y2="${y}" stroke="#7fb0dc" stroke-width="2"/>${vlv(1340,y,0,'vM'+y)}`).join('')}${T(1335,425,'PK-3101/2/3',{c:'pvt',a:'middle'})}</g>
+  <g ${tip('L-3301 · Sales gas pig launcher','Export gas passes the sales gas pig launcher before the export pipeline (to NCS).')}>${pigL(1418,398,72,'L-3301','SALES GAS LAUNCHER',1)}</g>
+  <path d="M1502 390 H1566 L1576 398 L1566 406 H1502 Z" fill="#1c3555" stroke="#4f7fae"/>${T(1500,424,'TO GAS EXPORT',{st:'font-size:10.5px'})}
+  <!-- ===== V-3402 ===== -->
+  <g ${tip('V-3402 · Three-phase separator','Receives liquids from V-1001, V-1102, V-1302, V-1303/E-1303, MRU, fuel gas scrubber, compressor scrubbers, closed drains and HP/LP flare KO drums. Vapour to VRU, water to PWT, condensate via E-3405 to V-3404.')}>${vH(486,593,143,30,'V-3402','#5a2a22')}<rect x="555" y="623" width="22" height="18" rx="6" fill="#5a2a22" stroke="#4f7fae"/></g>
+  ${['LIQUIDS FROM MRU / DPCU','FUEL GAS SCRUBBER','PROD. &amp; PIPELINE COMP.','CLOSED DRAINS, HP/LP FLARE DRUMS'].map((s,i)=>stub(530+i*20,500+i*0,530+i*20,590,'',{dir:'d'})).join('')}
+  ${T(528,492,'Liquids from: V-1102, V-1302, E-1303, MRU, FG scrubber, V-1501, drains…',{st:'font-size:10px'})}
+  <!-- ===== CONDENSATE STABILIZATION ===== -->
+  <g ${tip('E-3405A/B-01/02 · Feed / bottoms exchanger','Condensate from V-3402 is preheated by V-3404 bottoms before entering the column.')}>${hx(728,632,12)}${T(668,600,'E-3405A/B',{c:'pvt',st:'font-size:11.5px'})}</g>
+  <g ${tip('V-3404 · Condensate stabilizer','Condensate stabilizer column: overhead reflux via E-3403 / V-3405 / P-3403, hot oil reboiler E-3402A/B.')}>${vV(784,578,51,196,'')}${[610,630,650,690,710].map(y=>`<line x1="790" y1="${y}" x2="829" y2="${y}" stroke="#7fb0dc"/>`).join('')}${T(810,760,'V-3404',{c:'pvt',a:'middle'})}</g>
+  <g ${tip('E-3403 · Stabilizer overhead condenser','Air cooler for the V-3404 overhead.')}>${cooler('f3403',839,545,73,'E-3403')}</g>
+  <g ${tip('V-3405 · Reflux drum','Reflux drum: liquid pumped by P-3403A/B back to the V-3404 top; vapour to VRU 1st stage.')}>${vH(906,580,99,28,'V-3405')}</g>
+  ${pmp('p3403',899,688,9,'P-3403A/B')}
+  <g data-hl="whru" ${tip('E-3402A/B · Stabilizer reboiler','Hot oil reboiler on the V-3404 bottoms (circulated by P-3402A/B).')}>${hx(972,750,12,'e3402')}${T(990,770,'E-3402A/B',{c:'pvt',st:'font-size:11.5px'})}</g>
+  ${pmp('p3402',906,796,9,'P-3402A/B')}
+  <g ${tip('E-3404 · Condensate cooler','Air cooler for stabilized condensate ahead of the export pumps.')}>${cooler('f3404',952,812,73,'E-3404')}</g>
+  <g ${tip('P-3501A/B/C · Condensate export pumps','Condensate export pumps; when export is not available, run condensate recycle back to V-3402.')}>${pmp('p3501',1111,820,9,'P-3501A/B/C')}</g>
+  <g ${tip('L-3302 · Condensate pig launcher → jumper → L-3202','Modification (slide 19): ~40 m rigid pipe + DBB from L-3302 to CV pig receiver L-3202 on the mezzanine deck. Class GS1, reducer 6”→4” #1500, CS/LTCS, −29…204 °C, 255.3 barg, 120–140 m³/h, 4.05–4.73 m/s.')}>${pigL(1234,774,71,'L-3302','CONDENSATE LAUNCHER',1)}</g>
+  <path d="M1502 804 H1566 L1576 812 L1566 820 H1502 Z" fill="#5a2a22" stroke="#e8957a"/>
+  ${T(1440,842,'Jumper ~40 m → L-3202 → CVWA / KLWA',{st:'font-size:10px;fill:#94a3b8'})}${T(1440,855,'(standby – valve closed)',{st:'font-size:9.5px;fill:#64748b'})}
+  <g ${tip('Condensate to FSO','Stabilized condensate from P-3501 via L-3302 is routed to the FSO for storage / offloading. FSO inlet valve open during start-up.')}>${T(1388,856,'TO FSO',{st:'font-size:11px;fill:#e8957a;font-weight:700'})}</g>
+  ${vlv(1380,834,1,'vFSO')}
+  ${T(840,912,'CONDENSATE RECYCLE',{st:'font-size:10px'})}
+  <g ${tip('FSO – Floating Storage &amp; Offloading','Receives stabilized condensate from P-3501 via L-3302 during start-up.')}>
+   <path d="M1262 896 L1572 896 Q1584 896 1580 905 L1566 934 Q1562 940 1552 940 L1290 940 Q1278 940 1272 930 Z" fill="url(#fsoHull)" stroke="#94a3b8" stroke-width="1.2"/>
+   <path d="M1268 912 H1576" stroke="#b91c1c" stroke-width="3" opacity=".85"/>
+   <rect x="1262" y="890" width="318" height="7" rx="2" fill="#475569" stroke="#94a3b8" stroke-width=".8"/>
+   ${[1360,1392,1424,1456,1488].map(x=>`<rect x="${x}" y="881" width="24" height="9" rx="2" fill="#334155" stroke="#64748b" stroke-width=".8"/>`).join('')}
+   <path d="M1352 886 H1520" stroke="#94a3b8" stroke-width="1.2"/>
+   <rect x="1272" y="858" width="44" height="32" rx="2" fill="url(#fsoSup)" stroke="#94a3b8" stroke-width="1"/>
+   <rect x="1278" y="848" width="32" height="11" rx="2" fill="#cbd5e1" stroke="#94a3b8" stroke-width=".8"/>
+   ${[1282,1290,1298,1306].map(x=>`<rect x="${x}" y="851" width="5" height="4" fill="#38bdf8"/>`).join('')}
+   ${[0,1].map(r=>[1278,1288,1298,1308].map(x=>`<rect x="${x}" y="${864+r*9}" width="5" height="4" fill="#facc15" opacity=".8"/>`).join('')).join('')}
+   <rect x="1300" y="834" width="9" height="14" fill="#7f1d1d" stroke="#fca5a5" stroke-width=".8"/><rect x="1300" y="834" width="9" height="3" fill="#111827"/>
+   <path d="M1540 890 V866 M1532 870 H1548" stroke="#94a3b8" stroke-width="1.6"/><circle cx="1556" cy="880" r="7" fill="#334155" stroke="#94a3b8"/>
+   <text x="1420" y="928" text-anchor="middle" style="font-size:14px;font-weight:700;letter-spacing:.3em;fill:#e2e8f0">FSO</text>
+   <g clip-path="url(#fsoClip)"><g id="fsoWave"><path d="M1240 946 q10 -5 20 0 t20 0 t20 0 t20 0 t20 0 t20 0 t20 0 t20 0 t20 0 t20 0 t20 0 t20 0 t20 0 t20 0 t20 0 t20 0 t20 0 t20 0" stroke="#38bdf8" stroke-width="1.6" fill="none" opacity=".6"/></g></g>
+   
+  </g>
+  <!-- ===== VRU ===== -->
+  <g ${tip('V-3001-01 · VRU 1st stage suction scrubber','Receives vapour from V-3405 (stabilizer overhead).')}>${vV(1115,503,28,79,'V-3001-01')}</g>
+  <g ${tip('C-3001-01 / C-3001-02 · Vapour recovery compressor','Two-stage compressor on a common motor. Discharge gas returns to V-1001 (From VRC).')}>
+   <rect x="1200" y="530" width="38" height="20" fill="#163050" stroke="#4f7fae" stroke-width="1.5"/>${imp('iv1',1219,540,8)}
+   <rect x="1250" y="530" width="20" height="20" fill="#1c3555" stroke="#4f7fae"/>${T(1260,544,'M',{a:'middle',st:'font-size:10px;fill:#cfe0f5'})}
+   <rect x="1283" y="530" width="38" height="20" fill="#163050" stroke="#4f7fae" stroke-width="1.5"/>${imp('iv2',1302,540,8)}
+   ${T(1160,568,'C-3001-01',{st:'font-size:10.5px;fill:#e6f0ff'})}${T(1306,568,'C-3001-02',{st:'font-size:10.5px;fill:#e6f0ff'})}</g>
+  <g ${tip('E-3001-01 · VRU intercooler','')}>${cooler('f3001a',1246,642,73,'E-3001-01')}</g>
+  <g ${tip('V-3001-02 · VRU 2nd stage scrubber','Receives 1st stage discharge after cooling, plus vapour from V-3402.')}>${vV(1391,621,27,78,'V-3001-02')}</g>
+  <g ${tip('E-3001-02 · VRU after cooler','')}>${cooler('f3001b',1428,585,74,'E-3001-02')}</g>
+  ${T(700,472,'VRC → BACK TO V-1001 ◀',{st:'font-size:10.5px;fill:#fda4af;font-weight:600'})}${T(140,452,'FROM VRC',{st:'font-size:10px;fill:#fda4af'})}
+  <!-- ===== WATER ===== -->
+  <g ${tip('Produced Water Treatment &amp; Sand Removal','Receives water from V-1001 and V-3402 (and the Train 2 inlet separator). Vapour to HP/LP flare; sand to sand accumulator; hydrocarbons to closed drain; jetting water to V-1001.')}>
+   <rect x="230" y="720" width="143" height="151" fill="none" stroke="#4ade80" stroke-width="1.5" stroke-dasharray="7 3"/>${T(301,785,'PRODUCED WATER',{a:'middle',st:'font-size:12px;fill:#dcfce7;font-weight:600'})}${T(301,801,'TREATMENT &amp;',{a:'middle',st:'font-size:12px;fill:#dcfce7;font-weight:600'})}${T(301,817,'SAND REMOVAL',{a:'middle',st:'font-size:12px;fill:#dcfce7;font-weight:600'})}</g>
+  ${pmp('p3602',464,857,9,'P-3602A/B/C')}${pmp('p3603',555,850,9,'P-3603A/B/C')}
+  <g ${tip('To AQWA water injection','Treated water pumped to AQWA for injection.')}><path d="M612 842 H676 L686 850 L676 858 H612 Z" fill="#14532d" stroke="#4ade80"/>${T(612,878,'TO AQWA WATER INJ.',{st:'font-size:10.5px'})}</g>
+  ${T(350,928,'PRODUCED WATER → FSO / CAISSON',{st:'font-size:10.5px'})}
+  ${stub(301,871,301,905,'',{dir:'d'})}${T(250,712,'VAPOUR → HP/LP FLARE',{st:'font-size:9.5px'})}
+  <!-- tags -->
+  <text id="tQ" x="8" y="303" class="lbl" style="font-size:13px"></text>
+  <text id="tGtc" x="222" y="402" class="lbl" style="font-size:13px"></text>
+  <text id="tEx" x="1500" y="384" class="lbl" style="font-size:13px"></text>
+  <text id="tCx" x="1128" y="884" class="lbl" style="font-size:13px"></text>
+ </g>
+ <!-- ===== RIGHT COLUMN: FUEL GAS SYSTEM / FLARE / GTG (theo BB1 Process Description) ===== -->
+ <g ${tip('Fuel gas cooler','Cools gas taken from the V-1001 outlet before the fuel gas scrubber (tagged E-1102 on the BB1 Process Description sketch).')}>
+  <rect x="1415" y="52" width="60" height="16" fill="#1c3555" stroke="#4f7fae" stroke-width="2"/>${[1423,1433,1443,1453,1463].map(x=>`<line x1="${x}" y1="54" x2="${x}" y2="66" stroke="#4f7fae"/>`).join('')}${fan('ffgc',1445,84,10)}
+  <text x="1445" y="46" text-anchor="middle" class="vt2" style="font-size:10px">FG cooler</text></g>
+ <g ${tip('MBF-5701 · Fuel gas scrubber','Removes liquid from the fuel gas.')}><rect x="1500" y="36" width="24" height="78" rx="12" fill="#1c3555" stroke="#4f7fae" stroke-width="2"/><text x="1512" y="128" text-anchor="middle" class="vt2" style="font-size:10px">MBF-5701</text><text x="1512" y="140" text-anchor="middle" class="tag" style="font-size:9.5px">FG scrubber</text></g>
+ <g ${tip('MBF-5702A/B · Fuel gas filters','Fuel gas filters, two parallel trains.')}><rect x="1558" y="40" width="18" height="30" rx="5" fill="#1c3555" stroke="#4f7fae" stroke-width="1.5"/><rect x="1558" y="90" width="18" height="30" rx="5" fill="#1c3555" stroke="#4f7fae" stroke-width="1.5"/><text x="1567" y="150" text-anchor="middle" class="tag" style="font-size:9.5px">MBF-5702A/B</text></g>
+ <g ${tip('Fuel gas superheater A/B','Superheats the fuel gas before the turbines and PCV-5703.')}><rect id="shA" x="1590" y="47" width="58" height="16" rx="8" fill="#1c3555" stroke="#4f7fae" stroke-width="1.5"/><rect id="shB" x="1590" y="97" width="58" height="16" rx="8" fill="#1c3555" stroke="#4f7fae" stroke-width="1.5"/><path d="M1600 55 l5 -4 l5 8 l5 -8 l5 8 l5 -8 l5 4" stroke="#f87171" fill="none"/><path d="M1600 105 l5 -4 l5 8 l5 -8 l5 8 l5 -8 l5 4" stroke="#f87171" fill="none"/><text x="1619" y="40" text-anchor="middle" class="tag" style="font-size:9.5px">Superheater</text></g>
+ <g ${tip('PCV-5703-1A / PCV-5703-1B','Fuel gas pressure control to the flare headers: 1A set 4.0 barg, 1B set 3.5 barg.')}>
+  ${vlv(1630,150,0,'vPCVa')}${vlv(1630,178,0,'vPCVb')}
+  <text x="1642" y="140" class="tag" style="font-size:9.5px">PCV-5703-1A</text><text x="1642" y="151" class="tag" style="font-size:9.5px">4.0 barg</text><text x="1642" y="181" class="tag" style="font-size:9.5px">PCV-5703-1B</text><text x="1642" y="192" class="tag" style="font-size:9.5px">3.5 barg</text></g>
+ <text x="1464" y="240" text-anchor="end" class="tag" style="font-size:9.5px">Flare header 1 &amp; 2</text><text x="1464" y="252" text-anchor="end" class="tag" style="font-size:9.5px">Cold blowdown</text><text x="1464" y="264" text-anchor="end" class="tag" style="font-size:9.5px">LP flare header</text>
+ <g ${tip('HP / LP Flare','Flare headers 1/2 and cold blowdown → HP KO drum → HP flare tip; LP flare header → LP flare. Fuel gas enters the headers via PCV-5703-1A/1B. HP/LP pilots lit on propane before HC.')}>
+  <rect x="1500" y="305" width="90" height="22" rx="11" fill="#1c3555" stroke="#4f7fae" stroke-width="2"/><text x="1545" y="320" text-anchor="middle" style="font-size:9.5px;fill:#cfe0f5">HP KO drum</text>
+  <rect x="1615" y="305" width="90" height="22" rx="11" fill="#1c3555" stroke="#4f7fae" stroke-width="2"/><text x="1660" y="320" text-anchor="middle" style="font-size:9.5px;fill:#cfe0f5">LP KO drum</text>
+  <rect x="1539" y="245" width="12" height="60" fill="#3a2a2a" stroke="#8a6a80"/><rect x="1655" y="255" width="10" height="50" fill="#3a2a2a" stroke="#8a6a80"/>
+  <text x="1558" y="262" class="tag" style="font-size:10px">HP FLARE</text><text x="1672" y="272" class="tag" style="font-size:10px">LP FLARE</text></g>
+ ${flm('flHP',1545,227,1.3)}${flm('plHP',1545,241,.4)}${flm('plLP',1660,251,.35)}
+ <g ${tip('GTG Package','Gas turbine generator, 400/230 VAC (6.6 kV). Pre-HC: 1 x GTG on diesel; then fuel gas run test and DO/FG/DO changeover.')}>
+  ${gturb(1530,366,110,34,'gtgC','rgg')}<line x1="1640" y1="383" x2="1656" y2="383" stroke="#8aa0b8" stroke-width="4"/>
+  <rect x="1656" y="368" width="40" height="30" rx="4" fill="#16304e" stroke="#4f7fae" stroke-width="2"/>${imp('igtg',1676,383,10)}
+  <text x="1620" y="358" text-anchor="middle" class="vt2">GTG</text><text x="1676" y="410" text-anchor="middle" style="font-size:9.5px;fill:#94a3b8">GENERATOR</text><text id="gtgMode" x="1560" y="358" text-anchor="middle" style="font-size:10px;fill:#7f93ad">–</text></g>
+ ${flm('gtgFlame',1587,383,.4)}
+ <text id="pwr" x="1405" y="380" class="tag" style="fill:#fde047;font-size:11px" opacity="0">⚡ 400/230 VAC</text>
+ <text x="1405" y="430" class="tag" style="font-size:10.5px">Diesel</text>
+ <text x="1030" y="386" class="tag" style="font-size:10px;fill:#fde68a">◀ FUEL GAS → GT-1101</text>
+ <g data-nodim="1" ${tip('Utility status','Status of utility systems at each start-up step: grey = off / not yet, yellow = online / standby, green = in service.')}><rect x="1398" y="468" width="316" height="376" rx="6" fill="#0c1522" stroke="#2a3d59"/>
+  <text x="1408" y="485" style="font-size:11.5px;fill:#e2e8f0;font-weight:700;letter-spacing:.1em">UTILITIES STATUS</text><g id="ut_pwr"><circle cx="1414" cy="500" r="6"/><text x="1428" y="504" style="font-size:11.5px;fill:#cbd5e1">Main power 400/230 VAC (GTG)</text><text class="uts" x="1708" y="504" text-anchor="end" style="font-size:10.5px;font-weight:600"></text></g><g id="ut_ia"><circle cx="1414" cy="524" r="6"/><text x="1428" y="528" style="font-size:11.5px;fill:#cbd5e1">Instrument air</text><text class="uts" x="1708" y="528" text-anchor="end" style="font-size:10.5px;font-weight:600"></text></g><g id="ut_ua"><circle cx="1414" cy="548" r="6"/><text x="1428" y="552" style="font-size:11.5px;fill:#cbd5e1">Utility air</text><text class="uts" x="1708" y="552" text-anchor="end" style="font-size:10.5px;font-weight:600"></text></g><g id="ut_n2"><circle cx="1414" cy="572" r="6"/><text x="1428" y="576" style="font-size:11.5px;fill:#cbd5e1">Nitrogen</text><text class="uts" x="1708" y="576" text-anchor="end" style="font-size:10.5px;font-weight:600"></text></g><g id="ut_dsl"><circle cx="1414" cy="596" r="6"/><text x="1428" y="600" style="font-size:11.5px;fill:#cbd5e1">Diesel</text><text class="uts" x="1708" y="600" text-anchor="end" style="font-size:10.5px;font-weight:600"></text></g><g id="ut_sw"><circle cx="1414" cy="620" r="6"/><text x="1428" y="624" style="font-size:11.5px;fill:#cbd5e1">Service / wash-down water</text><text class="uts" x="1708" y="624" text-anchor="end" style="font-size:10.5px;font-weight:600"></text></g><g id="ut_drn"><circle cx="1414" cy="644" r="6"/><text x="1428" y="648" style="font-size:11.5px;fill:#cbd5e1">Open / closed drains</text><text class="uts" x="1708" y="648" text-anchor="end" style="font-size:10.5px;font-weight:600"></text></g><g id="ut_esd"><circle cx="1414" cy="668" r="6"/><text x="1428" y="672" style="font-size:11.5px;fill:#cbd5e1">ESD / F&amp;G / ICSS</text><text class="uts" x="1708" y="672" text-anchor="end" style="font-size:10.5px;font-weight:600"></text></g><g id="ut_flr"><circle cx="1414" cy="692" r="6"/><text x="1428" y="696" style="font-size:11.5px;fill:#cbd5e1">HP / LP flare &amp; pilots</text><text class="uts" x="1708" y="696" text-anchor="end" style="font-size:10.5px;font-weight:600"></text></g><g id="ut_fgs"><circle cx="1414" cy="716" r="6"/><text x="1428" y="720" style="font-size:11.5px;fill:#cbd5e1">Fuel gas system</text><text class="uts" x="1708" y="720" text-anchor="end" style="font-size:10.5px;font-weight:600"></text></g><g id="ut_hot"><circle cx="1414" cy="740" r="6"/><text x="1428" y="744" style="font-size:11.5px;fill:#cbd5e1">Hot oil circulation (WHRU)</text><text class="uts" x="1708" y="744" text-anchor="end" style="font-size:10.5px;font-weight:600"></text></g><g id="ut_teg"><circle cx="1414" cy="764" r="6"/><text x="1428" y="768" style="font-size:11.5px;fill:#cbd5e1">TEG regeneration</text><text class="uts" x="1708" y="768" text-anchor="end" style="font-size:10.5px;font-weight:600"></text></g><g id="ut_meoh"><circle cx="1414" cy="788" r="6"/><text x="1428" y="792" style="font-size:11.5px;fill:#cbd5e1">Methanol injection</text><text class="uts" x="1708" y="792" text-anchor="end" style="font-size:10.5px;font-weight:600"></text></g><g id="ut_chem"><circle cx="1414" cy="812" r="6"/><text x="1428" y="816" style="font-size:11.5px;fill:#cbd5e1">Chemical injection</text><text class="uts" x="1708" y="816" text-anchor="end" style="font-size:10.5px;font-weight:600"></text></g></g>
+${vlv(1405,42,1,'vFGin')}${vlv(1390,95,1,'vBYP')}<text x="1400" y="112" style="font-size:9.5px;fill:#fca5a5">FLARE BYPASS</text>
+ ${vlv(1650,438,0,'vFGgtg')}${vlv(1505,426,0,'vDOgtg')}${vlv(1010,393,0,'vFGgt')}
+ <text id="tFl" x="1405" y="335" class="lbl" style="font-size:12px"></text>
+ <text id="tFg" x="1405" y="182" class="lbl" style="font-size:12px"></text>
+ `},
+ flows(){const F=[
+  // receivers & AQWA → manifold → V-1001
+  ...[470,505,540].map((y,i)=>({sys:'gas',c:K.gas,d:`M2 ${y} H42`,v:S=>S['w'+(i+1)]>=1?1:S['w'+(i+1)]*0.3})),
+  ...[470,505,540].map((y,i)=>({sys:'gas',c:K.gas,d:`M100 ${y} H112`,v:S=>S['w'+(i+1)]>=1?1:0,w:3})),
+  {sys:'gas',c:K.gas,d:'M112 540 V276',v:S=>S.w1>=1?1:0},
+  {sys:'meoh',c:K.meoh,d:'M10 586 H2',v:S=>S.meoh,w:3},
+  {sys:'gas',c:K.gas,d:'M61 330 H72 V276',v:S=>S.aqwa},
+  {sys:'gas',c:K.gas,d:'M134 270 H162 V300',v:S=>Math.max(S.aqwa,S.w1>=1?1:0,S.vru)},
+  // V-1001 gas → V-1102 ; nhánh fuel gas
+  {sys:'gas',c:K.gas,d:'M183 300 V199 H215',v:S=>Math.max(gasT(S),S.flare,S.fg)},
+  {sys:'gas',c:K.gas,hl:['flare','fgp'],d:'M215 199 V18',v:S=>Math.max(S.fg,S.byp),w:2.5},
+  {sys:'gas',c:K.gas,abs:1,hl:['flare','fgp'],d:'M196 23.6 H1390',v:S=>Math.max(S.fg,S.byp),w:2.5},
+  {sys:'fg',c:K.fg,abs:1,d:'M1390 23.6 H1405 V60 H1415',v:S=>S.fg,w:2},
+  {sys:'flare',c:K.flare,abs:1,hl:'flare',d:'M1390 23.6 V164 H1470',v:S=>S.byp,w:4},
+  {sys:'fg',c:K.fg,abs:1,d:'M1475 60 H1500',v:S=>S.fg,w:2},
+  {sys:'fg',c:K.fg,abs:1,d:'M1512 36 V28 H1544 V55 H1558',v:S=>S.fg,w:2},
+  {sys:'fg',c:K.fg,abs:1,d:'M1544 55 V105 H1558',v:S=>S.fg,w:2},
+  {sys:'fg',c:K.fg,abs:1,d:'M1576 55 H1590',v:S=>S.fg,w:2},
+  {sys:'fg',c:K.fg,abs:1,d:'M1576 105 H1590',v:S=>S.fg,w:2},
+  {sys:'fg',c:K.fg,abs:1,d:'M1648 55 H1672 V105 H1648',v:S=>S.fg,w:2},
+  {sys:'fg',c:K.fg,abs:1,d:'M1672 105 V150 H1638',v:S=>S.fg,w:2},
+  {sys:'fg',c:K.fg,abs:1,d:'M1660 150 V178 H1638',v:S=>S.fg,w:2},
+  {sys:'fg',c:K.fg,abs:1,d:'M1672 105 H1710 V438 H1596 V396',v:S=>S.fg*S.gtgMode*S.gtgP,w:2},
+  {sys:'fg',c:K.fg,abs:1,hl:['prod','fgp'],d:'M1710 438 V456 H1388 V393 H258 V317',v:S=>S.fg*S.gtc,w:2},
+  {sys:'dsl',c:K.dsl,abs:1,d:'M1440 426 H1582 V396',v:S=>S.dsl*(1-S.gtgMode)*S.gtgP,w:3},
+  // PCV-5703 → flare headers
+  {sys:'flare',c:K.flare,abs:1,d:'M1622 150 H1600 V164 H1470',v:S=>S.fg*0.5},
+  {sys:'flare',c:K.flare,abs:1,d:'M1622 178 H1600 V164',v:S=>S.fg*0.4,w:2.5},
+  {sys:'flare',c:K.flare,abs:1,d:'M1470 164 V316 H1500',v:S=>Math.max(S.byp,S.fg*0.5)*S.flare},
+  {sys:'flare',c:K.flare,abs:1,d:'M1470 316 V340 H1660 V327',v:S=>Math.max(S.byp,S.fg*0.5)*S.flare*0.4,w:2.5},
+  {sys:'flare',c:K.flare,abs:1,d:'M1545 305 V247',v:S=>Math.max(S.byp,S.fg*0.5)*S.flare,w:5},
+  {sys:'flare',c:K.flare,abs:1,d:'M1660 305 V257',v:S=>Math.max(S.byp,S.fg*0.5)*S.flare*0.4,w:3},
+  // production
+  {sys:'gas',c:K.gas,d:'M215 199 H307',v:gasT},
+  {sys:'gas',c:K.gas,d:'M321 165 V149 H387 V325',v:gasT},
+  {sys:'gas',c:K.hot,d:'M421 325 V134 H428',v:gasT},
+  {sys:'gas',c:K.gas,d:'M500 133 H528 V356 H540',v:gasT},
+  // glycol contactor → E-1202 → F-1202 → E-1302
+  {sys:'gas',c:K.gas,d:'M566 168 V132 H626 V176',v:gasT},
+  {sys:'gas',c:K.gas,d:'M626 200 V236 H663',v:gasT},
+  {sys:'gas',c:K.gas,d:'M674 210 V160 H743',v:gasT},
+  // dew point
+  {sys:'gas',c:K.gas,d:'M769 160 H786',v:gasT},
+  {sys:'gas',c:K.gas,d:'M800 129 V118 H820',v:gasT},
+  {sys:'gas',c:K.gas,d:'M820 118 H851 V129',v:S=>S.exp||0},
+  {sys:'gas',c:K.gas,d:'M820 118 V200 H883',v:gasT},
+  {sys:'gas',c:K.gas,d:'M883 170 V200',v:S=>S.exp||0},
+  {sys:'gas',c:K.gas,d:'M883 200 H979',v:gasT},
+  {sys:'gas',c:K.cold||'#7dd3fc',d:'M993 147 V105 H756 V147',v:gasT},
+  {sys:'gas',c:'#7dd3fc',d:'M756 173 V214 H927',v:gasT},
+  {sys:'gas',c:'#7dd3fc',d:'M927 214 V170',v:S=>S.exp||0},
+  {sys:'gas',c:'#7dd3fc',d:'M927 214 H970 V89',v:gasT},
+  {sys:'gas',c:K.gas,d:'M947 129 V89 H970',v:S=>S.exp||0},
+  {sys:'gas',c:K.gas,d:'M970 89 H1035',v:gasT},
+  // MRU
+  {sys:'gas',c:K.gas,d:'M1057 80 H1069 V208',v:gasT},
+  {sys:'gas',c:K.gas,d:'M1069 273 V316 H1087',v:gasT},
+  {sys:'gas',c:K.gas,d:'M1108 310 H1138 V164 H1209',v:gasT},
+  // pipeline
+  {sys:'gas',c:K.gas,d:'M1223 149 V139 H1328 V173',v:gasT},
+  {sys:'gas',c:K.hot,d:'M1360 173 V140 H1439',v:gasT},
+  {sys:'gas',c:K.gas,d:'M1505 140 H1527',v:gasT},
+  {sys:'gas',c:K.gas,d:'M1527 140 V265',v:S=>S.fwd},
+  {sys:'gas',c:K.gas,d:'M1527 265 H1260 V348 H1286',v:S=>S.fwd},
+  {sys:'gas',c:K.gas,d:'M1385 348 H1408 V398 H1418',v:S=>S.fwd,w:5},
+  {sys:'gas',c:K.gas,d:'M1490 398 H1502',v:S=>S.fwd,w:5},
+  // recycle
+  {sys:'gas',c:K.gas,d:'M1527 140 V46 H272 V199',v:S=>S.rec,w:3,op:.8},
+  {sys:'gas',c:K.gas,d:'M516 133 V81 H290 V199',v:S=>S.rec*0.6,w:2.5,op:.65},
+  {sys:'gas',c:K.hot,d:'M421 179 H404 V119 H290',v:S=>0,w:2,op:.55},
+  {sys:'gas',c:K.gas,d:'M1527 62 H1176 V164',v:S=>S.rec*0.6,w:2.5,op:.65},
+  {sys:'gas',c:K.hot,d:'M424 133 V81',v:S=>0,w:2,op:.55},
+  {sys:'gas',c:K.hot,d:'M1365 140 V88 H1176',v:S=>0,w:2,op:.55},
+  // glycol loop
+  {sys:'teg',c:K.teg,d:'M737 318 V188 H638',v:S=>S.teg,w:3},
+  {sys:'teg',c:K.teg,d:'M614 188 H592',v:S=>S.teg,w:3},
+  {sys:'teg',c:K.teg,d:'M592 336 H690',v:S=>S.teg,w:3,op:.75},
+  {sys:'teg',c:K.teg,d:'M674 262 V336',v:S=>S.teg*0.5,w:2,op:.6},
+  // hot oil (WHRU + users)
+  {sys:'oil',c:K.oil,hl:'whru',d:'M357 283 H374',v:S=>S.hot,w:3},
+  {sys:'oil',c:'#b91c1c',hl:'whru',d:'M374 307 H357',v:S=>S.hot,w:2.5},
+  {sys:'oil',c:K.oil,hl:'whru',d:'M790 360 H762',v:S=>S.hot,w:3},
+  {sys:'oil',c:K.oil,hl:'whru',d:'M762 405 H790',v:S=>S.hot,w:2.5,op:.6},
+  {sys:'oil',c:K.oil,hl:'whru',d:'M986 247 H964',v:S=>S.hot,w:3},
+  {sys:'oil',c:K.oil,hl:'whru',d:'M940 247 H916',v:S=>S.hot,w:2.5,op:.6},
+  {sys:'cond',c:'#e2e8f0',d:'M993 212 V230 H952 V235',v:S=>gasT(S)*0.6,w:2.5},
+  {sys:'cond',c:'#e2e8f0',d:'M952 259 V272 H800',v:S=>gasT(S)*0.6,w:2.5},
+  {sys:'cond',c:'#e2e8f0',d:'M800 194 V280',v:S=>gasT(S)*0.6,w:2.5},
+  
+  {sys:'oil',c:K.oil,hl:'whru',d:'M1010 750 H984',v:S=>S.hot,w:3},
+  {sys:'oil',c:K.oil,hl:'whru',d:'M960 750 H935',v:S=>S.hot,w:2.5,op:.6},
+  // V-1001 liquids
+  {sys:'cond',c:K.cond,d:'M203 340 V393 H324 V551 H503 V593',v:S=>S.liq},
+  {sys:'pw',c:K.pw,d:'M162 340 V410 H296 V617 H141 V788 H230',v:S=>S.pw},
+  // V-3402 outlets
+  {sys:'pw',c:K.pw,d:'M566 641 V663 H171 V745 H230',v:S=>S.pw*0.7,w:3},
+  {sys:'cond',c:K.cond,d:'M614 623 V686 H660 V632 H716',v:S=>S.cond},
+  {sys:'cond',c:K.cond,d:'M740 632 H784',v:S=>S.cond},
+  {sys:'vru',c:K.vru,d:'M611 593 V485 H1055 V744 H1351 V650',v:S=>S.vru,dash:'2 9',w:2},
+  // stabilizer
+  {sys:'vru',c:K.vru,d:'M810 578 V552 H839',v:S=>S.cond*S.vru,dash:'2 9',w:2},
+  {sys:'cond',c:K.cond,d:'M912 552 H930 V580',v:S=>S.cond*0.7,w:3},
+  {sys:'cond',c:K.cond,d:'M993 608 V688 H908',v:S=>S.cond*0.7,w:3},
+  {sys:'cond',c:K.cond,d:'M890 688 H856 V612 H835',v:S=>S.cond*0.7,w:3},
+  {sys:'cond',c:K.cond,d:'M832 774 V796 H897',v:S=>S.cond*0.8,w:3},
+  {sys:'cond',c:K.cond,d:'M915 796 H972 V762',v:S=>S.cond*0.8,w:3},
+  {sys:'cond',c:K.cond,d:'M972 738 V718 H835',v:S=>S.cond*0.8,w:3},
+  {sys:'cond',c:K.cond,d:'M797 774 V796 H765 V592 H728 V620',v:S=>Math.max(S.crec,S.cexp)},
+  {sys:'cond',c:K.cond,d:'M728 644 V820 H952',v:S=>Math.max(S.crec,S.cexp)},
+  {sys:'cond',c:K.cond,d:'M1025 820 H1102',v:S=>Math.max(S.crec,S.cexp)},
+  {sys:'cond',c:K.cond,d:'M1120 812 H1170 V774 H1234',v:S=>S.cexp},
+  {sys:'cond',c:K.cond,d:'M1305 774 H1351 V812 H1380',v:S=>S.cexp,w:5},
+  {sys:'cond',c:K.cond,d:'M1380 812 V880',v:S=>S.cexp,w:5},
+  {sys:'cond',c:K.cond,d:'M1380 812 H1502',v:S=>0,w:4},
+  {sys:'cond',c:K.cond,d:'M1154 820 V918 H691 V701 H458 V608 H486',v:S=>S.crec,w:3,op:.75},
+  // VRU
+  {sys:'vru',c:K.vru,d:'M965 580 V521 H1115',v:S=>S.vru*S.cond,dash:'2 9',w:2},
+  {sys:'vru',c:K.vru,d:'M1129 503 V482 H1219 V530',v:S=>S.vru,dash:'2 9',w:2},
+  {sys:'vru',c:K.vru,d:'M1219 550 V650 H1246',v:S=>S.vru,dash:'2 9',w:2},
+  {sys:'vru',c:K.vru,d:'M1319 650 H1391',v:S=>S.vru,dash:'2 9',w:2},
+  {sys:'vru',c:K.vru,d:'M1404 621 V483 H1302 V530',v:S=>S.vru,dash:'2 9',w:2},
+  {sys:'vru',c:K.vru,d:'M1302 550 V593 H1428',v:S=>S.vru,dash:'2 9',w:2},
+  {sys:'vru',c:K.vru,d:'M1502 593 H1529 V458 H128 V279',v:S=>S.vru,dash:'2 9',w:2},
+  // water outlets
+  {sys:'pw',c:K.pw,d:'M373 857 H455',v:S=>S.pw,w:3},
+  {sys:'pw',c:K.pw,d:'M473 857 H510 V850 H546',v:S=>S.pw,w:3},
+  {sys:'pw',c:K.pw,d:'M564 850 H612',v:S=>S.pw,w:3},
+ ];return F},
+ P:[
+  {n:'Initial state',real:'Isolated at skid boundaries',dur:5,area:U({esd:2,drn:1}),env:[],
+   x:'The RFSU certificate is issued but systems are still <b>isolated at their skid boundaries</b>. Per slide 12 each system moves through 3 states: <b>isolated → online awaiting commissioning completion → process live</b> (coloured dot beside each section name). In every step the systems being commissioned are <b>highlighted</b> and the rest is dimmed.'},
+  {n:'Online before HC',real:'Slide 13 · Systems online pre-HC',dur:10,t:{teg:1,hot:1,pilot:1,dsl:1,gtgP:1},area:{...A({flare:1,gly:1,whru:1,fgp:1,gtg:1}),...U({pwr:2,ia:2,ua:2,n2:2,dsl:2,sw:2,drn:2,esd:2,flr:1,fgs:1,hot:2,teg:1})},env:['flare','gtg','fgp','gly','whru'],
+   ev:[[.15,'gtg','1 x GTG online – diesel mode (DO)'],[.35,'pil','HP/LP flare pilots lit on propane'],[.55,'teg','TEG hot recirculation through V-1202 / regeneration'],[.7,'hot','Hot oil online through 1 x WHRU'],[.85,'fgo','Fuel gas package online']],
+   x:'Systems that must be online <b>before hydrocarbons</b>:<br>• <b>1 x GTG</b> running on <b>diesel</b>, 400/230 VAC<br>• <b>HP and LP flare pilots</b> lit from the <b>propane</b> supply<br>• <b>TEG</b> in hot recirculation: regeneration → E-1202 → V-1202 top → bottom → regeneration<br>• <b>Hot oil</b> online through <b>1 x WHRU</b> (serving E-1303, reboiler E-3402A/B, glycol regeneration)<br>• <b>Fuel gas package</b> online<br>Other systems are brought online within isolated envelopes.'},
+  {n:'Open wells – HC start-up',real:'Slide 14 · Hydrocarbon start-up',dur:12,seq:['w1','w2','w3'],t:{meoh:1,flare:1,byp:1,liq:.5,q:12,flq:12},area:{...U({flr:2,meoh:2,chem:1}),...A({inlet:2,sep:2,flare:2,cond:1,vru:1})},env:['inlet','sep','flare'],
+   on:(S,T,once)=>{[1,2,3].forEach(i=>{if(S['w'+i]>=1)once('wo'+i,`Well ${i} opened – flow into receiver R-320${i}`)});if(T>.2)once('meo','Methanol injection – dynamic commissioning');if(T>.35)once('fl','<b style="color:#f87171">Flare bypass valve open – gas V-1001 → flare header → HP flare tip (fuel gas system bypassed)</b>');if(T>.6)once('vr','V-1001 liquids → V-3402 (VRU lined up, started with the stabilizer in step 6)')},
+   x:'<b>Open the 03 wells one by one</b>: flow arrives via trunkline and <b>receivers R-3201/3202/3203</b> → inlet manifold → <b>V-1001</b>. <b>Methanol injection</b> is dynamically commissioned at the same time. Gas from the V-1001 outlet goes through the <b>flare bypass valve</b>, <b>bypassing the fuel gas system</b>, into flare headers 1/2 → <b>HP KO drum → HP flare tip</b> (pilots already lit). The fuel gas inlet valve stays closed until step 3, when the bypass is closed. Hydrocarbon liquid goes to <b>V-3402</b>; the VRU is lined up and started together with condensate stabilization in step 6. No reservoir water is expected – wells were cleaned up to the drill rig.'},
+  {n:'Fuel gas commissioning',real:'Slide 15 · Fuel gas commissioning',dur:9,t:{aqwa:1,fg:1,byp:0,fgq:4.5},area:{...A({fgp:2}),...U({fgs:2})},env:['inlet','sep','fgp'],
+   ev:[[.2,'aq','AQWA gas via bridge → inlet manifold → V-1001'],[.55,'fgs','V-1001 → FG cooler → MBF-5701 → MBF-5702A/B → superheater'],[.35,'bpc','Flare bypass valve closed – flare header now purged via PCV-5703-1A/1B'],[.9,'fgok','Fuel gas temperature stable – HC FTP steps complete']],
+   x:'Gas <b>from AQWA via the bridge</b> enters the inlet manifold → V-1001; the fuel gas branch at the V-1001 outlet runs <b>FG cooler → MBF-5701 (scrubber) → MBF-5702A/B (filters) → superheater A/B</b> → GTG / GT-1101 / WHRU, and via <b>PCV-5703-1A (4.0 barg) / 1B (3.5 barg)</b> to flare headers 1/2, cold blowdown and LP flare header.<br>Conditions: control system per Operating Control Philosophy, Safety Logic Diagram and Functional Analysis; safety devices tested; <b>400/230 VAC, IA, HP flare</b> available; <b>fuel gas temperature stable</b>.'},
+  {n:'GTG commissioning with HC',real:'Slide 16 · GTG gas mode',dur:12,t:{fgq:6},area:A({gtg:2}),env:['gtg','fgp'],
+   on:(S,T,once)=>{let m;if(T<.2)m=0;else if(T<.3)m=(T-.2)/.1;else if(T<.55)m=1;else if(T<.65)m=1-(T-.55)/.1;else if(T<.78)m=0;else if(T<.88)m=(T-.78)/.1;else m=1;S.gtgMode=m;
+    if(T>.2)once('g1','GTG changeover DO → FG');if(T>.32)once('g2','GTG run test on fuel gas');if(T>.55)once('g3','GTG changeover FG → DO');if(T>.78)once('g4','GTG changeover DO → FG – DO/FG/DO transfer confirmed')},
+   fin:S=>{S.gtgMode=1},
+   x:'With stable fuel gas: <b>GTG running test in fuel gas mode</b>, then check the <b>DO → FG → DO fuel changeover</b> (watch the text under GTG and the grey diesel / yellow fuel gas lines). Ends in FG mode. All related functions tested and put in service.'},
+  {n:'Produced water',real:'Slide 17 · PW HC commissioning',dur:9,t:{pw:1},area:A({pw:2}),env:['sep','pw'],
+   ev:[[.3,'pw1','Water from V-1001 and V-3402 boot → produced water treatment'],[.6,'pw2','P-3602 → P-3603 → AQWA water injection'],[.85,'pw3','Produced water caisson fully commissioned']],
+   x:'Water separated in <b>V-1001</b> and the <b>V-3402</b> boot goes to <b>Produced Water Treatment &amp; Sand Removal</b>. Treated water is pumped by <b>P-3602A/B/C → P-3603A/B/C</b> to <b>AQWA</b> for injection; the remainder goes to the produced water outlet (caisson). Caisson fully commissioned and produced water system dynamically commissioned; safety devices tested.'},
+  {n:'Condensate to FSO',real:'Slides 18–19 · Stabilization + export line',dur:12,t:{liq:1,cond:1,cexp:1,crec:.15,vru:1},area:{...A({cond:2,cex:2,vru:2}),...U({chem:2})},env:['cond','cex','vru'],
+   ev:[[.15,'c1','V-3402 → E-3405 → V-3404 (hot oil reboiler E-3402)'],[.35,'c1b','Overhead reflux: E-3403 → V-3405 → P-3403; V-3405 vapour → VRU'],[.55,'c2','V-3404 bottoms → E-3405 → E-3404 → P-3501 → L-3302'],[.8,'c3','FSO inlet valve open – condensate to FSO (CVWA jumper closed)'],[.9,'c4','2-stage VRU → gas back to V-1001 (From VRC)']],
+   x:'Route per PFD: <b>V-3402 → E-3405A/B → V-3404</b>; reboiler <b>E-3402A/B</b> (hot oil, P-3402); overhead reflux <b>E-3403 → V-3405 → P-3403</b>; bottoms → E-3405 → <b>E-3404 → P-3501A/B/C → L-3302 → FSO</b> (<b>FSO inlet valve open</b>, CVWA jumper valve closed). Until the FSO line is lined up, run <b>condensate recycle</b> back to V-3402. V-3405 and V-3402 vapour go to the 2-stage <b>VRU</b> (C-3001-01/02); VRU discharge <b>returns to V-1001</b> (From VRC).<br><b>CVWA jumper</b> (L-3302 → L-3202, ~40 m, #1500, 255.3 barg, 120–140 m³/h) stays on standby with its valve closed.'},
+  {n:'GTC full recycle',real:'Slide 20 · Compressor start-up',dur:11,t:{gtc:1,rec:1,aqwa:1,fgq:10},area:{...A({prod:1,dew:1,mru:1,pipe:1,met:1,whru:2,gly:2}),...U({teg:2})},env:['inlet','sep','prod','whru','gly','dew','mru','pipe'],
+   ev:[[.15,'gt1','GT-1101 started → Idle'],[.45,'gt2','C-1101 / C-1501 running – anti-surge &amp; train recycle open, outlet valve closed'],[.8,'gt3','Gas circulating via overall train recycle (after E-1501 → V-1102 inlet)']],
+   x:'Start <b>GTC Train 1</b> in <b>full recycle</b> on gas from <b>AQWA</b>. <b>Anti-surge</b> valves open on both compressors (cooled gas after E-1102 → V-1102, after E-1501 → V-1501). The <b>train recycle</b> takes cooled gas <b>after E-1501</b> back to the V-1102 inlet, and the <b>outlet valve to metering stays closed</b>. All <b>hot gas bypass</b> lines (taken before the coolers: C-1101 HGB and hydrate temperature control; C-1501 HGB) stay <b>closed</b> – they are fast-acting / temperature-control lines, not the normal recycle path. The <b>turbo-expander is bypassed through the JT valve</b> and C-1301 is bypassed. Gas circulates through V-1102 → C-1101 → E-1102 → V-1202 → E-1202 → F-1202 → E-1302 → V-1302 → JT valve → V-1303 → E-1302 → C-1301 bypass → F-1401 → V-1401 → F-1402 → V-1501 → C-1501 → E-1501 and back.<br>GT-1101 follows the OEM start sequence: lube oil, hydraulic starter, crank/purge, ignition, Idle, warm-up.'},
+  {n:'Idle → MOS & first gas',real:'Slides 24–25 · 125 s simulated / 120 s actual',dur:12,t:{fwd:1,rec:.08,flare:.15,q:47.08,flq:2,fgq:17,mos:1},area:A({prod:2,dew:2,mru:2,pipe:2,met:2,gly:2}),env:['prod','gly','dew','mru','pipe','met'],
+   ev:[[.1,'m1','GTC ramp from Idle to MOS'],[.4,'m2','Anti-surge / train recycle closing – line packing'],[.7,'m3','Gas after E-1501 → metering PK-3101/2/3 → gas export'],[.95,'m4','<b style="color:#facc15">FIRST GAS – well flow ≥ 47.08 MMSCFD</b>']],
+   x:'Ramp the compressors from <b>Idle to MOS</b> in about <b>120 s</b>. Total packing volume <b>4057.78 Sm³</b>; after the available buffer the net deficit is <b>1183.21 Sm³</b>, which must come from the wells → minimum well flow <b>9.86 Sm³/s = 35 496 Sm³/h = 30.08 MMSCFD</b>. Plus fuel gas <b>17 MMSCFD</b> (2 GTG + 1 GTC) → total <b>47.08 MMSCFD</b>. Anti-surge / train recycle valves close and the <b>outlet valve opens</b>; gas after E-1501 flows to <b>metering PK-3101/2/3 → gas export</b>. Dew point control stays on the JT valve (expander bypassed).'},
+  {n:'Steady operation',real:'Process systems live',dur:Infinity,area:{},env:[],
+   x:'All of Train 1 is <b>process live</b>: gas exported via metering, condensate sent to the FSO, produced water treated and sent to AQWA, VRU returning vapour to V-1001, GTG on fuel gas, flare down to pilots and small purge flow.'},
+ ],
+ roTitle:'Plant status',
+ ro(S){const nw=[1,2,3].filter(i=>S['w'+i]>=1).length;
+  return [['Wells open (R-3201/2/3)',nw+' / 3'],['Well flow',S.q>0.05?fmt(S.q,S.mos>.99?2:1)+' MMSCFD':'–'],['Gas from AQWA',S.aqwa>.1?chip('ok','SUPPLYING'):chip('','–')],
+   ['Gas to flare',S.flq>0.05?fmt(S.flq,1)+' MMSCFD':'–'],['Fuel gas',S.fgq>0.05?fmt(S.fgq,1)+' MMSCFD':'–'],
+   ['GTG',S.gtgP<.5?chip('','STOPPED'):S.gtgMode>.5?chip('ok','RUN · FG'):chip('warn','RUN · DO')],
+   ['Flare pilots',S.pilot>.5?chip('warn','LIT'):chip('','OFF')],['TEG / Hot oil',(S.teg>.5?chip('ok','TEG'):chip('','TEG'))+' '+(S.hot>.5?chip('ok','HOT OIL'):chip('','HOT OIL'))],
+   ['Produced water',S.pw>.5?chip('ok','TREATING'):chip('','–')],['Condensate export',S.cexp>.05?fmt(130*S.cexp)+' m³/h':S.crec>.1?chip('warn','RECYCLE'):'–'],
+   ['VRU',S.vru>.5?chip('ok','RUN → V-1001'):S.vru>.1?chip('warn','ONLINE'):chip('','–')],
+   ['GTC Train 1',S.mos>.99?chip('ok','MOS'):S.gtc>.5?chip('warn','FULL RECYCLE'):chip('','STOPPED')],['Gas export',S.fwd>.05?chip('ok','EXPORTING'):chip('','–')]]},
+ extra(S,idx){return idx>=8?`<h2>Start-up flow estimate (slides 24–25)</h2><div class="ro">
+   <span>Idle → MOS time</span><span>125 s sim. / 120 s</span><span>Total packing volume</span><span>4057.78 Sm³</span><span>Net deficit volume</span><span>1183.21 Sm³</span>
+   <span>Minimum well flow</span><span>9.86 Sm³/s</span><span></span><span>35 496 Sm³/h</span><span>Process gas</span><span>30.08 MMSCFD</span><span>Fuel gas (2 GTG + 1 GTC)</span><span>17 MMSCFD</span><span><b style="color:#fff">Total</b></span><span><b style="color:#facc15">47.08 MMSCFD</b></span></div>`:''},
+ draw(S,now,dt,rot){
+  for(const k in AREA){const g=$('ar_'+k);const st=S['A_'+k]|0;if(g._st!==st){g._st=st;const c=st===2?'#4ade80':st===1?'#facc15':'#f472b6';g.querySelector('circle').setAttribute('fill',c);g.querySelector('text').setAttribute('fill',st===2?'#86efac':st===1?'#fde68a':'#f0abcb')}}
+  const VS={vSDV:gasT(S)>.5,vSU1:gasT(S)>.5,vAS1:S.rec>.3,vHG1:false,vTR:S.rec>.3,vAS2:S.rec>.3,vHG2:false,vTC1:false,vOUT:S.fwd>.5,vJT:gasT(S)>.5,vEXPi:(S.exp||0)>.5,vC13b:gasT(S)>.5,vC13i:(S.exp||0)>.5,vFSO:S.cexp>.5,
+   vM315:S.fwd>.5,vM348:S.fwd>.5,vM381:S.fwd>.5,vEXP:S.fwd>.5,vCEX:false,vAQ:S.aqwa>.5,vFGin:S.fg>.5,vBYP:S.byp>.5,
+   vFGgtg:S.fg>.5&&S.gtgP>.5&&S.gtgMode>.5,vDOgtg:S.gtgP>.5&&S.gtgMode<=.5,vFGgt:S.gtc>.5,vPCVa:S.fg>.5,vPCVb:S.fg>.5,wv1:S.w1>=1,wv2:S.w2>=1,wv3:S.w3>=1};
+  for(const id in VS){const e=$(id);if(!e)continue;const o=VS[id];if(e._o!==o){e._o=o;e.setAttribute('fill',o?'#16a34a':'#dc2626');e.setAttribute('stroke',o?'#bbf7d0':'#fecaca')}}
+  $('fsoWave').setAttribute('transform',`translate(${(-(now/60)%40).toFixed(1)} 0)`);
+  UTK.forEach(k=>{const g=$('ut_'+k);const st=S['U_'+k]|0;if(g._st!==st){g._st=st;g.querySelector('circle').setAttribute('fill',st===2?'#22c55e':st===1?'#facc15':'#334155');const t=g.querySelector('.uts');t.textContent=st===2?'IN SERVICE':st===1?'ONLINE':'OFF';t.setAttribute('fill',st===2?'#86efac':st===1?'#fde68a':'#64748b')}});
+  const fl=(id,v)=>{$(id).setAttribute('opacity',(v*(0.85+0.15*Math.sin(now/70)+0.08*Math.random())).toFixed(2))};
+  fl('flHP',S.flare);fl('plHP',S.pilot);fl('plLP',S.pilot);
+  $('flHP').setAttribute('transform',`translate(1545 245) scale(${(0.5+0.7*S.flare+0.05*Math.sin(now/50)).toFixed(3)}) translate(-1545 -245)`);
+  $('gtA').setAttribute('fill',S.gtc>.1?'#5a2418':'#2a2030');$('gtFlame').setAttribute('opacity',(S.gtc*(0.8+0.2*Math.sin(now/60))).toFixed(2));$('gtgFlame').setAttribute('opacity',(S.gtgP*(0.8+0.2*Math.sin(now/55))).toFixed(2));$('gtgC').setAttribute('fill',S.gtgP>.1?'#5a2418':'#2a2030');
+  $('gtgMode').textContent=S.gtgP<.5?'FUEL: –':S.gtgMode>.5?'FUEL: GAS':'FUEL: DIESEL';$('gtgMode').setAttribute('fill',S.gtgP<.5?'#7f93ad':S.gtgMode>.5?'#fde68a':'#d4d4d4');
+  $('pwr').setAttribute('opacity',S.gtgP>.5?1:0);
+  {const hot=S.gtc,cc=hot>.3?'#fee2e2':S.hot>.5?'#fca5a5':'#450a0a';svg.querySelectorAll('.whT').forEach(e=>e.setAttribute('stroke',cc));svg.querySelectorAll('.whF').forEach(e=>e.setAttribute('stroke',cc));
+   $('whHeat').setAttribute('opacity',(hot*(0.85+0.15*Math.sin(now/300))).toFixed(2));
+   svg.querySelectorAll('.whP').forEach((c,i)=>{const ph=((now/1600)+i/6)%1;c.setAttribute('cy',(316-ph*80).toFixed(1));c.setAttribute('cx',(335+Math.sin(ph*9+i)*2.5).toFixed(1));c.setAttribute('opacity',(hot*(ph<.55?.55:.55*(1-(ph-.55)/.45))).toFixed(2));c.setAttribute('fill',ph<.4?'#fca5a5':'#94a3b8')})}
+  $('regen').querySelector('rect').setAttribute('stroke-width',S.teg>.5?2.5:1.5);
+  ['e1303','e3402'].forEach(id=>{const e=$(id);e.setAttribute('stroke',S.hot>.5?'#ef4444':'#9cc4ea');e.setAttribute('fill',S.hot>.5?'#5a1010':'#1c3555');e.setAttribute('stroke-width',S.hot>.5?3:2)});
+  const g=gasT(S),cq=Math.max(S.cexp,S.crec);
+  rot('i1101',g*2.2);rot('i1501',g*2.2);rot('iexp',(S.exp||0)*2);rot('ic1301',(S.exp||0)*2);rot('iv1',S.vru*1.6);rot('iv2',S.vru*1.6);
+  rot('igtg',S.gtgP*2.4);['c','k','t'].forEach(s=>{rot('rgt'+s,S.gtc*(s==='t'?2.2:3));rot('rgg'+s,S.gtgP*(s==='t'?2.2:3))});rot('ffgc',Math.max(S.fg,S.flare)*1.4);['shA','shB'].forEach(id=>$(id).setAttribute('stroke',Math.max(S.fg,S.flare)>.5?'#f87171':'#4f7fae'));rot('f1102',g*1.4);rot('f1501',g*1.4);rot('f3404',cq*1.4);rot('p3501',cq*2.4);
+  rot('f3403',S.cond*1.4);rot('p3403',S.cond*2);rot('p3402',S.cond*2);rot('f3001a',S.vru*1.4);rot('f3001b',S.vru*1.4);
+  rot('p3602',S.pw*2.2);rot('p3603',S.pw*2.2);
+  setT('tQ',S.q>0.05?`Wells ${fmt(S.q,S.mos>.99?2:1)} MMSCFD`:'');setT('tFl',S.flq>0.05?`Flare ${fmt(S.flq,1)} MMSCFD`:'');
+  setT('tFg',S.fgq>0.05?`Fuel gas ${fmt(S.fgq,1)} MMSCFD`:'');setT('tGtc',S.mos>.99?'GTC: MOS':S.gtc>.5?'GTC: full recycle':'');
+  setT('tEx',S.fwd>.05?'Gas export ▶':'');setT('tCx',S.cexp>.05?`Condensate ${fmt(130*S.cexp)} m³/h`:'');
+ },
+ enter(p,flows,Ss,Se){
+  const rs=[];(p.env||[]).forEach(k=>AREA[k].r.forEach((_,i)=>rs.push(svgRect(k,i))));
+  const on=rs.length>0;
+  const score=(b)=>{let best=0;for(const [x,y,w,h] of rs){const ox=b.w<1?(b.x>=x&&b.x<=x+w?1:0):Math.max(0,Math.min(b.x+b.w,x+w)-Math.max(b.x,x))/b.w;
+    const oy=b.h<1?(b.y>=y&&b.y<=y+h?1:0):Math.max(0,Math.min(b.y+b.h,y+h)-Math.max(b.y,y))/b.h;best=Math.max(best,Math.min(ox,oy))}return best};
+  const toSvg=(bb,pfd)=>pfd?{x:sx(bb.x),y:sy(bb.y),w:bb.width*0.866,h:bb.height*0.866}:{x:bb.x,y:bb.y,w:bb.width,h:bb.height};
+  svg.querySelectorAll('#xeq [data-tip]').forEach(g=>{if(g.closest('[data-nodim]'))return;let hit=1;if(on&&g.dataset.hl&&(p.env||[]).includes(g.dataset.hl)){}else if(on){try{hit=score(toSvg(g.getBBox(),!!g.closest('[data-pfd]')))>=.5}catch(e){hit=1}}
+   g.style.opacity=hit?1:.25;g.style.filter=on&&hit?'drop-shadow(0 0 5px rgba(250,204,21,.55))':'none'});
+  (flows||[]).forEach(o=>{let hit=1;if(on&&Ss&&Se){let a=0,b=0;try{a=o.f.v(Ss);b=o.f.v(Se)}catch(e){}if(b>0.05&&b>a+0.05){o.dim=1;return}}if(on&&o.f.hl&&[].concat(o.f.hl).some(h=>(p.env||[]).includes(h))){o.dim=1;return}if(on){try{hit=score(toSvg(o.p.getBBox(),!o.f.abs))>=.5}catch(e){hit=1}}o.dim=hit?1:.22});
+  for(const k in AREA){const g=$('ar_'+k);if(!g)continue;const h=!on||(p.env||[]).includes(k);g.style.opacity=h?1:.35;g.querySelector('text').style.fontSize=on&&h?'12.5px':''}
+ }
+};
+
+/* =====================================================================
+   ENGINE
+   ===================================================================== */
+const cache={};
+function setT(id,v){if(cache[id]!==v){cache[id]=v;const e=$(id);if(e)e.textContent=v}}
+function setH(id,v){if(cache[id]!==v){cache[id]=v;const e=$(id);if(e)e.innerHTML=v}}
+let auto=true,SC=null,S={},from={},idx=0,pt=0,phase=null,playing=false,speed=1,simT=0,flowEls=[],sysOn={},rotors={},roKeys=0;
+const logEl=$('xLog'),logged=new Set();
+function log(m){const d=document.createElement('div');d.innerHTML=`<span class="t">${fmtT(simT)}</span> ${m}`;logEl.prepend(d)}
+function once(k,m){if(!logged.has(k)){logged.add(k);log(m)}}
+function fmtT(t){t=Math.floor(t);return String(Math.floor(t/60)).padStart(2,'0')+':'+String(t%60).padStart(2,'0')}
+
+function load(sc,startIdx){
+ SC=sc;for(const k in cache)delete cache[k];
+ svg.innerHTML='';flowEls=[];sysOn={};logged.clear();logEl.innerHTML='';simT=0;
+ $('xTitle').textContent=sc.title;$('xSub').innerHTML=sc.sub;$('xFoot').innerHTML=sc.foot;
+ const mk=id=>{const e=document.createElementNS(NS,'g');e.id=id;svg.appendChild(e);return e};
+ svg.setAttribute('viewBox',sc.vb||'0 0 1600 850');svg.innerHTML=sc.build();
+ const Lb=mk('xbase'),Lf=mk('xflow'),Le=mk('xeq');
+ (sc.flows()).forEach(f=>{const w=f.w||4;sysOn[f.sys]=1;
+  const b=document.createElementNS(NS,'path');['d','fill','stroke'].forEach((a,i)=>b.setAttribute(a,[f.d,'none',f.c][i]));
+  b.setAttribute('stroke-opacity',(f.op||1)*(f.base?0.45:0.2));b.setAttribute('stroke-width',w+2);b.setAttribute('stroke-linejoin','round');b.dataset.sys=f.sys;Lb.appendChild(b);
+  const p=document.createElementNS(NS,'path');p.setAttribute('d',f.d);p.setAttribute('fill','none');p.setAttribute('stroke',f.c);p.setAttribute('stroke-width',w);
+  p.setAttribute('stroke-linecap','round');p.setAttribute('stroke-linejoin','round');p.setAttribute('stroke-dasharray',f.dash||'3 12');if(f.op)p.setAttribute('stroke-opacity',f.op);
+  if(sc.tf&&!f.abs){b.setAttribute('transform',sc.tf);p.setAttribute('transform',sc.tf)}p.dataset.sys=f.sys;Lf.appendChild(p);flowEls.push({f,p,b,off:0});});
+ if(sc.equip)Le.innerHTML=sc.equip();
+ rotors={};svg.querySelectorAll('.rot').forEach(e=>rotors[e.id]={e,cx:+e.dataset.cx,cy:+e.dataset.cy,a:0});
+ // legend
+ const lg=$('xLegend');lg.innerHTML='';
+ (sc.legend||[]).forEach(([k,n,c])=>{const b=document.createElement('button');b.innerHTML=`<i style="background:${c}"></i>${n}`;b.onclick=()=>{sysOn[k]=!sysOn[k];b.classList.toggle('off',!sysOn[k])};lg.appendChild(b)});
+ if(sc.status)AST.forEach(a=>{const s=document.createElement('span');s.className='stlg';s.innerHTML=`<i style="background:${a.f};border-color:${a.s};border-radius:50%;width:10px;height:10px"></i>${a.t}`;lg.appendChild(s)});
+ if(sc.status){const v=document.createElement('span');v.className='stlg';v.innerHTML='<i style="background:#16a34a;border-color:#16a34a"></i>Valve open <i style="background:#dc2626;border-color:#dc2626;margin-left:6px"></i>Valve closed';lg.appendChild(v)}
+ if(sc.status){const s=document.createElement('span');s.className='stlg';s.innerHTML=`<i style="background:none;border:1.5px solid #facc15;box-shadow:0 0 6px #facc15"></i>Highlighted = systems commissioned in this step`;lg.appendChild(s)}
+ // phase list
+ const pl=$('xList');pl.innerHTML='';
+ sc.P.forEach((p,i)=>{const li=document.createElement('li');li.textContent=i+'. '+p.n;li.onclick=()=>{setMode(false);jump(i);setPlay(true)};pl.appendChild(li)});
+ S={...sc.s0};startPhase(startIdx||0,!!startIdx);
+}
+function snap(p){Object.assign(S,p.t||{});(p.seq||[]).forEach(k=>S[k]=1);Object.assign(S,p.area||{});if(p.fin)p.fin(S);if(p.on&&p.dur!==Infinity)p.on(S,1,()=>{})}
+function startPhase(i,force){
+ idx=i;phase=SC.P[i];pt=0;
+ if(force){S={...SC.s0};for(let k=0;k<i;k++)snap(SC.P[k]);}
+ Object.assign(S,phase.area||{});
+ if(SC.enter){const save=S;S={...S};snap(phase);const Se=S;S=save;SC.enter(phase,flowEls,{...S},Se)}
+ from={...S};render();
+}
+function jump(i){logged.clear();startPhase(i,true);log('→ Jump to: '+SC.P[i].n)}
+function render(){
+ $('xName').textContent=phase.n;$('xReal').textContent=phase.real;$('xText').innerHTML=phase.x;
+ $('xGo').innerHTML=phase.go?`<button class="gobtn" data-go="${phase.go[0]}" data-gi="${phase.go[1]}">${phase.go[2]}</button>`:'';
+ [...$('xList').children].forEach((li,j)=>li.className=j<idx?'done':j===idx?'cur':'');
+ $('xRo').innerHTML=`<h2>${SC.roTitle}</h2><div class="ro" id="xRoG"></div>`;roKeys=0;for(const k in cache)if(k.startsWith('ro'))delete cache[k];
+ const ex=SC.extra?SC.extra(S,idx):'';$('xExtra').innerHTML=ex;
+}
+function step(dt){
+ simT+=dt;pt+=dt;const T=Math.min(1,pt/phase.dur),e=ease(T);
+ for(const k in phase.t)S[k]=lerp(from[k],phase.t[k],e);
+ if(phase.seq){const n=phase.seq.length;phase.seq.forEach((k,i)=>{const v=clamp(T*n/0.9-i);S[k]=Math.max(from[k]||0,v);if(v>=1){const L=SC.lab||(SC===SC1?LAB1:null);if(L&&L[k])once(k,'✓ '+L[k])}})}
+ if(phase.on)phase.on(S,phase.dur===Infinity?Math.min(1,pt/6):T,once);
+ (phase.ev||[]).forEach(([t,k,m])=>{if(T>=t)once(k,m)});
+ if(T>=1&&phase.dur!==Infinity&&auto){snap(phase);startPhase(idx+1)}
+ $('xBar').style.width=(phase.dur===Infinity?100:T*100)+'%';
+ $('xReal').textContent=phase.real+(!auto&&T>=1&&phase.dur!==Infinity?'  ·  MANUAL – holding at this step, press Next ▶':'');
+}
+function rot(id,rps){const r=rotors[id];if(!r)return;r.a=(r.a+rps*360*_dt)%360;r.e.setAttribute('transform',`rotate(${r.a.toFixed(1)} ${r.cx} ${r.cy})`)}
+let _dt=0;
+function draw(dt,now){
+ _dt=dt;
+ flowEls.forEach(o=>{const v=o.f.v(S);if(o.f.cf){const c=o.f.cf(S);if(o.c!==c){o.c=c;o.p.setAttribute('stroke',c);o.b.setAttribute('stroke',c)}}o.off-=v*dt*70;o.p.setAttribute('stroke-dashoffset',o.off.toFixed(1));const dm=o.dim==null?1:o.dim;o.p.style.opacity=sysOn[o.f.sys]?(v>0.02?Math.min(1,0.25+v)*dm:0):0;o.b.style.opacity=(sysOn[o.f.sys]?1:.15)*(dm<1?.4:1)});
+ SC.draw(S,now,dt,rot);
+ const rows=SC.ro(S);const g=$('xRoG');
+ if(g&&roKeys!==rows.length){roKeys=rows.length;g.innerHTML=rows.map((r,i)=>`<span>${r[0]}</span><span id="ro${i}"></span>`).join('');for(const k in cache)if(k.startsWith('ro'))delete cache[k]}
+ rows.forEach((r,i)=>setH('ro'+i,r[1]));
+ if(SC.extra){const ex=SC.extra(S,idx);if(cache.__ex!==ex){cache.__ex=ex;$('xExtra').innerHTML=ex}}
+}
+let last=performance.now();
+function loop(now){const dt=Math.min(0.05,(now-last)/1000);last=now;
+ if(SC){if(playing)step(dt*speed);draw(playing?dt*speed:0,now)}
+ requestAnimationFrame(loop)}
+
+// controls
+const bPlay=$('xPlay');
+function setPlay(v){playing=v;bPlay.textContent=playing?'⏸ Pause':'▶ Play';bPlay.classList.toggle('on',playing)}
+bPlay.onclick=()=>setPlay(!playing);
+$('xRestart').onclick=()=>{load(SC,0)};
+function setMode(a){auto=a;$('xAuto').classList.toggle('on',a);$('xMan').classList.toggle('on',!a);if(SC)log(a?'Mode: AUTO – steps run in sequence':'Mode: MANUAL – each step holds until Next')}
+$('xAuto').onclick=()=>setMode(true);$('xMan').onclick=()=>setMode(false);
+$('xNext').onclick=()=>{if(idx<SC.P.length-1){snap(phase);startPhase(idx+1);log('→ '+phase.n);setPlay(true)}};
+$('xPrev').onclick=()=>{if(idx>0){jump(idx-1);setPlay(true)}};
+document.querySelectorAll('[data-xsp]').forEach(b=>b.onclick=()=>{speed=+b.dataset.xsp;document.querySelectorAll('[data-xsp]').forEach(x=>x.classList.toggle('on',x===b))});
+// tooltip
+const tipEl=$('xTip');
+svg.addEventListener('mousemove',ev=>{const t=ev.target.closest('[data-tip]');if(!t){tipEl.style.display='none';return}
+ tipEl.innerHTML=`<b>${t.dataset.tip}</b><br>${t.dataset.desc}`;tipEl.style.display='block';
+ const x=Math.min(ev.clientX+14,innerWidth-300);tipEl.style.left=x+'px';tipEl.style.top=(ev.clientY+14)+'px'});
+svg.addEventListener('mouseleave',()=>tipEl.style.display='none');
+
+// view switching
+const SCS={sequence:SC0,prep:SC1,startup:SC2};
+function goView(v,i){
+ if(!['sequence','prep','startup'].includes(v))v='sequence';
+ document.body.dataset.view=v;
+ document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('on',t.dataset.view===v));
+ if(SC!==SCS[v]||i!=null)load(SCS[v],i||0);
+ try{if(location.hash!=='#'+v)history.replaceState(null,'','#'+v)}catch(e){}
+ window.scrollTo(0,0);
+}
+window.goView=goView;
+document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>goView(t.dataset.view));
+document.addEventListener('click',e=>{const b=e.target.closest('[data-go]');if(b){const gi=b.dataset.gi;goView(b.dataset.go,gi==null?null:+gi)}});
+window.addEventListener('hashchange',()=>{const v=location.hash.slice(1);if(v&&v!==document.body.dataset.view)goView(v)});
+window.__startX=()=>{goView((location.hash||'#sequence').slice(1));requestAnimationFrame(loop)};
+})();
+</script>
+<script>window.__startX();</script>
+</body>
+</html>
